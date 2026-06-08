@@ -1,917 +1,2369 @@
 <!DOCTYPE html>
-<html lang="hr">
+<html lang="bs">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Školska Aplikacija - Ultimate Edition</title>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+<meta name="theme-color" content="#1e40af">
+<title>e-DNEVNIK</title>
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
-  :root {
-    --bg: #0f172a; --card: #1e293b; --border: #334155;
-    --primary: #6366f1; --primary-hover: #4f46e5;
-    --text: #f1f5f9; --muted: #94a3b8;
-    --danger: #ef4444; --success: #22c55e; --warning: #f59e0b; --info: #0ea5e9;
-    --test: #ef4444; --hw: #3b82f6; --rem: #f59e0b;
-  }
   * { box-sizing: border-box; }
-  body {
-    font-family: 'Segoe UI', Inter, sans-serif; margin: 0; padding: 0;
-    background: linear-gradient(135deg, #1e3a8a, var(--bg));
-    color: var(--text); min-height: 100vh; display: flex; flex-direction: column;
+  body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f3f4f6; }
+  .header-blue { background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%); }
+  .sidebar-item.active { background: #eff6ff; color: #1e40af; border-left: 4px solid #1e40af; font-weight: 600; }
+  .sidebar-item { border-left: 4px solid transparent; transition: all 0.15s; }
+  .sidebar-item:hover { background: #f9fafb; }
+  .tab-active { color: #1e40af; border-bottom: 2px solid #1e40af; font-weight: 600; }
+  .tab-inactive { color: #6b7280; border-bottom: 2px solid transparent; }
+  .tab-inactive:hover { color: #374151; }
+  table { border-collapse: separate; border-spacing: 0; width: 100%; }
+  table th { background: #f9fafb; color: #374151; font-weight: 600; font-size: 0.875rem; }
+  table td, table th { border: 1px solid #e5e7eb; padding: 8px 12px; text-align: center; }
+  table tbody tr { transition: background 0.1s; }
+  table tbody tr:hover { background: #fafbfc; }
+  .btn-primary { background: #1e40af; color: white; transition: all 0.15s; }
+  .btn-primary:hover { background: #1e3a8a; transform: translateY(-1px); box-shadow: 0 4px 8px rgba(30,64,175,0.25); }
+  .btn-secondary { background: white; color: #374151; border: 1px solid #d1d5db; transition: all 0.15s; }
+  .btn-secondary:hover { background: #f9fafb; border-color: #9ca3af; }
+  .btn-success { background: #059669; color: white; transition: all 0.15s; }
+  .btn-success:hover { background: #047857; transform: translateY(-1px); }
+  .btn-danger { background: #dc2626; color: white; transition: all 0.15s; }
+  .btn-danger:hover { background: #b91c1c; }
+  input, select, textarea { outline: none; transition: all 0.15s; }
+  input:focus, select:focus, textarea:focus { border-color: #1e40af; box-shadow: 0 0 0 3px rgba(30,64,175,0.1); }
+  .modal-bg { background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); animation: fadeIn 0.2s; }
+  .modal-content { animation: slideUp 0.25s ease-out; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  .ocjena-chip { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 28px; padding: 0 8px; margin: 2px; border-radius: 8px; font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: all 0.15s; }
+  .ocjena-chip:hover { transform: scale(1.1); box-shadow: 0 2px 6px rgba(0,0,0,0.15); }
+  .ocjena-old { text-decoration: line-through; opacity: 0.5; background: #fee2e2 !important; color: #991b1b !important; font-size: 0.7rem; min-width: 22px; height: 22px; cursor: default; }
+  .ocjena-old:hover { transform: none; box-shadow: none; }
+  .ocjena-1 { background: #fecaca; color: #7f1d1d; }
+  .ocjena-2 { background: #fed7aa; color: #7c2d12; }
+  .ocjena-3 { background: #fef08a; color: #713f12; }
+  .ocjena-4 { background: #bbf7d0; color: #14532d; }
+  .ocjena-5 { background: #86efac; color: #064e3b; }
+  .ocjena-NPS { background: #e0e7ff; color: #3730a3; font-size: 0.7rem; padding: 0 6px; min-width: 38px; }
+  .ispitivanje-card { border-left: 4px solid #dc2626; }
+  .ispitivanje-pismeno { border-left-color: #dc2626; background: #fef2f2; }
+  .ispitivanje-usmeno { border-left-color: #ea580c; background: #fff7ed; }
+  .ispitivanje-kontrolni { border-left-color: #ca8a04; background: #fefce8; }
+  .ispitivanje-test { border-left-color: #2563eb; background: #eff6ff; }
+  .redar-badge { display:inline-block; background:linear-gradient(135deg,#fbbf24,#f59e0b); color:white; padding:2px 10px; border-radius:12px; font-size:0.7rem; font-weight:700; }
+  .add-grade-btn { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: #dbeafe; color: #1e40af; font-weight: bold; cursor: pointer; transition: all 0.15s; margin-left: 4px; border: none; }
+  .add-grade-btn:hover { background: #1e40af; color: white; transform: scale(1.15); }
+  .pulse-now { animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(30,64,175,0.5); } 50% { box-shadow: 0 0 0 12px rgba(30,64,175,0); } }
+  .notification { position: fixed; top: 80px; right: 20px; background: #059669; color: white; padding: 14px 22px; border-radius: 10px; box-shadow: 0 6px 20px rgba(0,0,0,0.2); z-index: 1000; animation: slideIn 0.3s; max-width: 380px; display: flex; align-items: center; gap: 10px; }
+  @keyframes slideIn { from { transform: translateX(420px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  .stat-card { transition: all 0.2s; cursor: pointer; }
+  .stat-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.08); }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: 600; }
+  .schedule-cell { min-height: 70px; vertical-align: middle; }
+  .schedule-current { background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%) !important; border: 2px solid #1e40af !important; }
+  .schedule-soon { background: #fef3c7 !important; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: #f1f5f9; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+  .empty-state { text-align: center; padding: 60px 20px; color: #9ca3af; }
+  .empty-state svg { width: 64px; height: 64px; margin: 0 auto 16px; opacity: 0.4; }
+  .login-input { padding-left: 44px; }
+  .login-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #9ca3af; pointer-events: none; }
+  .fade-in { animation: fadeInUp 0.3s ease-out; }
+  @keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  @media print {
+    aside, header, .no-print { display: none !important; }
+    main { padding: 0 !important; overflow: visible !important; }
+    body { background: white; }
   }
-  h1,h2,h3,h4 { margin: 0 0 16px 0; font-weight: 700; }
-  
-  button {
-    cursor: pointer; border: none; border-radius: 8px; padding: 8px 16px;
-    font-weight: 600; transition: all 0.2s; font-size: 0.95rem;
-  }
-  button:disabled { opacity: 0.6; cursor: not-allowed; }
-  button.primary { background: var(--primary); color: white; }
-  button.primary:hover:not(:disabled) { background: var(--primary-hover); transform: translateY(-1px); }
-  button.secondary { background: var(--border); color: white; }
-  button.secondary:hover { background: #475569; }
-  button.success { background: var(--success); color: white; }
-  button.danger { background: var(--danger); color: white; }
-  button.sm { padding: 4px 8px; font-size: 0.8rem; }
-  button.icon { background: none; padding: 4px; color: var(--muted); }
-  button.icon:hover { color: white; }
 
-  input, select, textarea {
-    font-family: inherit; font-size: 1rem; padding: 10px 12px;
-    border-radius: 8px; border: 2px solid var(--border); margin-bottom: 12px; width: 100%;
-    background: var(--bg); color: white; outline: none;
-  }
-  input:focus, select:focus, textarea:focus { border-color: var(--primary); }
-  textarea { min-height: 80px; resize: vertical; }
-  label { font-weight: 600; margin-bottom: 6px; display: block; font-size: 0.85rem; color: var(--muted); }
+  /* ============== RESPONZIVNOST ============== */
+  .sidebar-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 35; }
 
-  header {
-    background: rgba(30, 41, 59, 0.95); padding: 16px 24px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.3); position: sticky; top: 0; z-index: 100;
-    display: flex; justify-content: space-between; align-items: center; backdrop-filter: blur(5px);
-  }
-  header h1 {
-    font-size: 1.3rem; margin: 0;
-    background: linear-gradient(135deg, #818cf8, #c084fc);
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  /* Table wrapper for horizontal scroll on mobile */
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .table-wrap table { min-width: 600px; }
+  /* Automatski dodaj horizontalni scroll na sve table kontejnere */
+  main .bg-white.border.rounded-xl.overflow-hidden { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
+  main .bg-white.border.rounded-xl.overflow-hidden > table { min-width: 500px; }
+  /* Ako tabela nije u kontejneru s overflow-hidden, ipak budi skrolabilna */
+  main > .bg-white > table, main > table { display: block; overflow-x: auto; }
+  /* Canvas (Chart.js) ostaje responzivan */
+  canvas { max-width: 100% !important; height: auto !important; }
+  /* Sprječi širenje slika i pre-tagova */
+  img, pre { max-width: 100%; }
+
+  /* TABLET (do 1024px) */
+  @media (max-width: 1024px) {
+    main { padding: 1.25rem !important; }
+    h2.text-3xl { font-size: 1.5rem !important; }
   }
 
-  /* Overlay */
-  #overlay {
-    position: fixed; inset: 0; background: var(--bg); z-index: 9999;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; color: white;
-  }
-  .spinner {
-    width: 40px; height: 40px; border: 4px solid var(--border); border-top: 4px solid var(--primary);
-    border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 16px;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  #errorMsg { color: var(--danger); margin-top: 10px; display: none; max-width: 400px; text-align: center; }
-
-  /* Auth */
-  #authSection {
-    display: none; max-width: 400px; margin: 40px auto;
-    background: var(--card); padding: 30px; border-radius: 16px;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.4); border: 1px solid var(--border);
-  }
-  .tabs { display: flex; margin-bottom: 20px; background: var(--bg); border-radius: 10px; padding: 4px; }
-  .tab {
-    flex: 1; text-align: center; padding: 8px; cursor: pointer; border-radius: 8px;
-    color: var(--muted); font-weight: 600; transition: 0.2s;
-  }
-  .tab.active { background: var(--primary); color: white; }
-  
-  /* Dashboard */
-  #dashboard { display: none; flex: 1; flex-direction: column; height: calc(100vh - 60px); }
-  #dashboardMain { display: flex; flex: 1; overflow: hidden; }
-  
-  #sideMenu {
-    width: 240px; background: var(--card); padding: 16px; display: flex; flex-direction: column; gap: 6px;
-    border-right: 1px solid var(--border); overflow-y: auto; flex-shrink: 0;
-  }
-  #sideMenu button {
-    text-align: left; background: transparent; color: #cbd5e1; padding: 10px 12px;
-    border-radius: 8px; display: flex; align-items: center; gap: 10px;
-  }
-  #sideMenu button:hover { background: #334155; color: white; }
-  #sideMenu button.active { background: var(--primary); color: white; }
-  
-  #mainContent { flex: 1; padding: 24px; overflow-y: auto; background: var(--bg); }
-  
-  /* Components */
-  table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
-  th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
-  th { background: #334155; color: var(--muted); text-transform: uppercase; font-size: 0.75rem; }
-  tr:hover { background: #253347; }
-  
-  .card { background: var(--card); padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border); }
-  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  
-  /* Badges */
-  .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 700; }
-  .badge.admin { background: #8b5cf6; }
-  .badge.teacher { background: var(--info); }
-  .badge.student { background: var(--success); }
-  .badge.test { background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid var(--test); }
-  .badge.hw { background: rgba(59, 130, 246, 0.2); color: #93c5fd; border: 1px solid var(--hw); }
-  .badge.rem { background: rgba(245, 158, 11, 0.2); color: #fcd34d; border: 1px solid var(--rem); }
-  .badge.justified { background: var(--success); color: white; }
-  .badge.absent { background: var(--danger); color: white; }
-  .badge.overdue { background: var(--danger); animation: pulse 2s infinite; }
-  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
-
-  /* Announcements */
-  .announcement {
-    background: #253347; border-left: 4px solid var(--border);
-    padding: 16px; border-radius: 8px; margin-bottom: 12px; position: relative;
-  }
-  .announcement.type-test { border-color: var(--test); }
-  .announcement.type-homework { border-color: var(--hw); }
-  .announcement.type-reminder { border-color: var(--rem); }
-  .ann-header { display: flex; justify-content: space-between; margin-bottom: 8px; flex-wrap: wrap; gap: 8px; }
-  .ann-title { font-weight: 700; font-size: 1rem; }
-  .ann-meta { font-size: 0.8rem; color: var(--muted); }
-  .ann-deadline { color: var(--warning); font-weight: 600; }
-
-  /* Modal */
-  #modalOverlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 2000;
-    display: none; align-items: center; justify-content: center; padding: 16px;
-  }
-  #modal {
-    background: var(--card); padding: 24px; border-radius: 16px;
-    max-width: 800px; width: 100%; max-height: 90vh; overflow-y: auto;
-    border: 1px solid #475569; display: flex; flex-direction: column;
-  }
-  #modalHeader { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-shrink: 0; }
-  #modalBody { overflow-y: auto; flex: 1; }
-  
-  .lesson-grid { display: grid; grid-template-columns: 2fr 0.8fr 1fr 1.2fr 1fr auto; gap: 8px; align-items: center; margin-bottom: 8px; padding: 8px; background: #253347; border-radius: 8px; }
-  .lesson-grid.header { background: #334155; font-size: 0.75rem; color: var(--muted); font-weight: 700; }
-  
+  /* MOBILE (do 768px) */
   @media (max-width: 768px) {
-    #dashboardMain { flex-direction: column; }
-    #sideMenu { width: 100%; flex-direction: row; overflow-x: auto; padding: 10px; border-right: none; border-bottom: 1px solid var(--border); }
-    #sideMenu button { flex: 0 0 auto; white-space: nowrap; }
-    .grid-2 { grid-template-columns: 1fr; }
-    .lesson-grid { grid-template-columns: 1fr; gap: 4px; background: none; padding: 0; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
-    .lesson-grid.header { display: none; }
+    /* Sidebar postaje overlay */
+    aside#sidebar {
+      position: fixed !important;
+      top: 56px;
+      left: 0;
+      bottom: 0;
+      width: 260px;
+      z-index: 40;
+      transform: translateX(-100%);
+      transition: transform 0.25s ease;
+      box-shadow: 4px 0 16px rgba(0,0,0,0.15);
+    }
+    aside#sidebar.open {
+      transform: translateX(0);
+    }
+    aside#sidebar.open ~ .sidebar-backdrop,
+    body.sidebar-open .sidebar-backdrop { display: block; }
+
+    /* Header */
+    header { padding: 0.5rem 0.75rem !important; }
+    header h1 { font-size: 1rem !important; }
+    #currentTime { display: none !important; }
+    #userBadge { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.75rem !important; padding: 4px 10px !important; }
+
+    /* Main content */
+    main { padding: 1rem !important; }
+    h2.text-3xl { font-size: 1.4rem !important; }
+    h3.text-lg, h3.text-xl { font-size: 1rem !important; }
+
+    /* Tabela - scroll horizontalno */
+    main table { font-size: 0.8rem; min-width: 600px; }
+    main table th, main table td { padding: 6px 8px !important; }
+
+    /* Header dugmadi manji */
+    .btn-primary, .btn-secondary, .btn-success, .btn-danger {
+      padding: 0.5rem 0.8rem !important;
+      font-size: 0.85rem;
+    }
+
+    /* Stat kartice na mobilnoj */
+    .stat-card { padding: 0.75rem !important; }
+    .stat-card .text-3xl { font-size: 1.5rem !important; }
+
+    /* Modal */
+    .modal-content { padding: 1rem !important; max-width: 95vw !important; }
+
+    /* Notifikacije */
+    .notification { left: 10px; right: 10px; max-width: none; top: 70px; }
+    #notifPanel { width: calc(100vw - 20px) !important; left: 10px; right: 10px; }
+
+    /* Login na mobilnoj */
+    #loginScreen .max-w-md { padding: 1.5rem !important; }
+    #loginScreen .text-3xl { font-size: 1.5rem !important; }
+
+    /* Tabovi scrollable */
+    .border-b .pb-3 { font-size: 0.85rem; padding-bottom: 8px !important; }
+
+    /* Filteri stack */
+    .flex.flex-wrap.gap-4, .flex.flex-wrap.gap-6 { gap: 0.75rem !important; }
+
+    /* Ocjene chip manje */
+    .ocjena-chip { min-width: 24px; height: 24px; font-size: 0.8rem; margin: 1px; }
+    .add-grade-btn { width: 20px; height: 20px; font-size: 0.85rem; }
+
+    /* Raspored - prikaži horizontalni scroll */
+    .schedule-cell { min-height: 50px; padding: 4px !important; }
+    .schedule-cell .text-sm { font-size: 0.7rem !important; }
+
+    /* Skrij neke nepotrebne stvari na mobilnoj */
+    .hide-mobile { display: none !important; }
+
+    /* Grid kartice idu u jednu kolonu */
+    .stat-card { font-size: 0.85rem; }
+
+    /* Notif badge poziciju */
+    #notifBtn { padding: 0.3rem !important; }
   }
-  
-  .msg { margin-top: 10px; text-align: center; font-size: 0.9rem; min-height: 20px; }
-  .msg.error { color: var(--danger); }
-  .msg.success { color: var(--success); }
+
+  /* MALI MOBILE (do 480px) */
+  @media (max-width: 480px) {
+    main { padding: 0.75rem !important; }
+    .stat-card .text-3xl { font-size: 1.25rem !important; }
+    header h1 { display: none; }
+    #userBadge { max-width: 90px; }
+
+    /* Forme */
+    input, select, textarea { font-size: 16px !important; } /* sprječava zoom na iOS-u */
+
+    /* Modal */
+    .modal-content { padding: 0.85rem !important; border-radius: 12px !important; }
+    .modal-content h3 { font-size: 1.1rem !important; }
+
+    /* Grade picker u modalu - veća dugmad za prste */
+    .grid-cols-5 { gap: 4px !important; }
+  }
+
+  /* Hover efekti samo na uređajima sa mišem */
+  @media (hover: none) {
+    .stat-card:hover, .btn-primary:hover, .btn-secondary:hover { transform: none !important; box-shadow: none !important; }
+    .ocjena-chip:hover { transform: none !important; }
+  }
 </style>
-<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
 </head>
-<body>
+<body class="h-screen overflow-hidden">
 
-<div id="overlay">
-  <div class="spinner"></div>
-  <div id="loadingText">Pokretanje sustava...</div>
-  <div id="errorMsg"></div>
-  <button id="retryBtn" class="primary" style="margin-top:15px; display:none;" onclick="location.reload()">Pokušaj ponovo</button>
-</div>
-
-<header>
-  <h1>Školska Aplikacija Ultimate</h1>
-  <div id="headerUser" style="font-size:0.9rem; color:var(--muted);"></div>
-</header>
-
-<section id="authSection">
-  <div class="tabs">
-    <div class="tab active" onclick="switchTab('login')">Prijava</div>
-    <div class="tab" onclick="switchTab('register')">Registracija</div>
+<!-- LOGIN -->
+<div id="loginScreen" class="h-screen flex items-center justify-center bg-gradient-to-br from-blue-700 via-blue-800 to-blue-900 relative overflow-hidden">
+  <div class="absolute inset-0 opacity-10">
+    <div class="absolute top-10 left-10 w-72 h-72 bg-white rounded-full blur-3xl"></div>
+    <div class="absolute bottom-10 right-10 w-96 h-96 bg-blue-300 rounded-full blur-3xl"></div>
   </div>
-  <div id="loginPanel">
-    <form id="loginForm">
-      <label>Korisničko ime</label>
-      <input type="text" id="loginUser" required>
-      <label>Lozinka</label>
-      <input type="password" id="loginPass" required>
-      <button type="submit" class="primary" style="width:100%">Prijavi se</button>
-    </form>
-  </div>
-  <div id="registerPanel" style="display:none">
-    <form id="registerForm">
-      <label>Ime i prezime</label>
-      <input type="text" id="regName" required>
-      <label>Uloga</label>
-      <select id="regRole" required>
-        <option value="">Odaberi...</option>
-        <option value="admin">Admin</option>
-        <option value="teacher">Učitelj</option>
-        <option value="student">Učenik</option>
-      </select>
-      <label>Korisničko ime</label>
-      <input type="text" id="regUser" required>
-      <label>Lozinka</label>
-      <input type="password" id="regPass" required>
-      <button type="submit" class="primary" style="width:100%">Registriraj se</button>
-    </form>
-  </div>
-  <div id="authMsg" class="msg"></div>
-</section>
-
-<section id="dashboard">
-  <div id="dashboardMain">
-    <nav id="sideMenu"></nav>
-    <main id="mainContent"></main>
-  </div>
-</section>
-
-<div id="modalOverlay">
-  <div id="modal">
-    <div id="modalHeader">
-      <h3 id="modalTitle" style="margin:0;"></h3>
-      <button onclick="hideModal()" style="background:none; color:#94a3b8; font-size:1.5rem;">&times;</button>
+  <div class="bg-white rounded-2xl shadow-2xl p-10 w-full max-w-md relative z-10 fade-in">
+    <div class="text-center mb-8">
+      <div class="inline-block bg-gradient-to-br from-blue-600 to-blue-800 text-white p-4 rounded-2xl mb-4 shadow-lg">
+        <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+      </div>
+      <h1 class="text-3xl font-bold text-gray-800">e-DNEVNIK</h1>
+      <p class="text-gray-500 mt-2">Prijavite se na svoj račun</p>
     </div>
-    <div id="modalBody"></div>
+    <form id="loginForm" class="space-y-4" autocomplete="off">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Korisničko ime</label>
+        <div class="relative">
+          <span class="login-icon"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg></span>
+          <input type="text" id="loginUser" autocomplete="username" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg login-input" required>
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Lozinka</label>
+        <div class="relative">
+          <span class="login-icon"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg></span>
+          <input type="password" id="loginPass" autocomplete="current-password" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg login-input" required>
+        </div>
+      </div>
+      <div id="loginError" class="hidden text-red-600 text-sm bg-red-50 p-3 rounded-lg border border-red-200"></div>
+      <button type="submit" class="w-full btn-primary py-3 rounded-lg font-semibold text-base shadow-md">Prijava</button>
+      <div class="text-center pt-2">
+        <button type="button" onclick="if(confirm('Resetovati sve podatke?')){localStorage.removeItem('edn_data_v3');location.reload();}" class="text-xs text-gray-400 hover:text-gray-600">Resetuj podatke</button>
+      </div>
+    </form>
   </div>
 </div>
+
+<!-- MAIN APP -->
+<div id="mainApp" class="hidden h-screen flex flex-col">
+  <header class="header-blue text-white px-3 md:px-4 py-2 md:py-3 flex items-center justify-between shadow-lg no-print">
+    <div class="flex items-center gap-2 md:gap-3">
+      <button id="toggleSidebar" class="p-1.5 hover:bg-white/10 rounded transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      <h1 class="text-base md:text-lg font-semibold tracking-wide">e-DNEVNIK</h1>
+    </div>
+    <div class="flex items-center gap-2 md:gap-3">
+      <span id="currentTime" class="hidden md:inline-block text-sm bg-white/10 px-3 py-1.5 rounded-full font-medium"></span>
+      <button id="notifBtn" class="relative p-1.5 hover:bg-white/10 rounded transition-colors" title="Obavještenja">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+        <span id="notifBadge" class="hidden absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold">0</span>
+      </button>
+      <span id="userBadge" class="text-sm bg-white/10 px-3 py-1.5 rounded-full font-medium"></span>
+      <button id="closeBtn" class="p-1.5 hover:bg-red-500/30 rounded transition-colors" title="Odjavi se">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+      </button>
+    </div>
+  </header>
+  <div class="flex flex-1 overflow-hidden relative">
+    <aside id="sidebar" class="w-64 bg-white shadow-md flex flex-col overflow-y-auto no-print">
+      <nav id="sidebarNav" class="flex-1 py-4"></nav>
+      <div class="p-4 border-t text-xs text-gray-400 text-center">e-Dnevnik v3.0</div>
+    </aside>
+    <div class="sidebar-backdrop no-print" onclick="closeSidebar()"></div>
+    <main id="mainContent" class="flex-1 bg-gray-50 overflow-y-auto p-4 md:p-8"></main>
+  </div>
+</div>
+
+<div id="modalContainer"></div>
+<div id="notifContainer"></div>
+<div id="panelContainer"></div>
 
 <script>
-  const firebaseConfig = {
-    apiKey: "AIzaSyBOG1TyQvTqBrljvaetqAiTT2SObYqKOe4",
-    authDomain: "helloworld-d6cf3.firebaseapp.com",
-    databaseURL: "https://helloworld-d6cf3-default-rtdb.firebaseio.com",
-    projectId: "helloworld-d6cf3",
-    storageBucket: "helloworld-d6cf3.firebasestorage.app",
-    messagingSenderId: "5547576635",
-    appId: "1:5547576635:web:3ae2abd72950da9a93fb1e"
-  };
+// =========================== DATA ===========================
+const DEFAULT_DATA = {
+  skola: { naziv: 'OŠ "Hasan Kikić"', adresa: 'Sarajevo', godina: '2025/2026' },
+  users: [
+    { id: 1, username: 'admin', password: 'admin', role: 'admin', name: 'Administrator', email: 'admin@edn.ba' },
+    { id: 2, username: 'mirsad', password: '1234', role: 'nastavnik', name: 'Mirsad Hodžić', email: 'mirsad@edn.ba', predmeti: ['Bosanski jezik','Historija'], zaduzenja: [{predmet:'Bosanski jezik',razrediIds:[1,2]},{predmet:'Historija',razrediIds:[1]}], razrednikRazredId: 1 },
+    { id: 3, username: 'edina', password: '1234', role: 'nastavnik', name: 'Edina Karić', email: 'edina@edn.ba', predmeti: ['Matematika','Fizika'], zaduzenja: [{predmet:'Matematika',razrediIds:[1,2]},{predmet:'Fizika',razrediIds:[1]}], razrednikRazredId: 2 },
+    { id: 4, username: 'sara', password: '1234', role: 'nastavnik', name: 'Sara Imamović', email: 'sara@edn.ba', predmeti: ['Engleski jezik'], zaduzenja: [{predmet:'Engleski jezik',razrediIds:[1,2]}] },
+    { id: 5, username: 'amna', password: '1234', role: 'ucenik', name: 'Amna Ahmetović', email: 'amna@edn.ba', ucenikId: 1 }
+  ],
+  razredi: [
+    { id: 1, naziv: 'VI-1', razrednik: 'Mirsad Hodžić' },
+    { id: 2, naziv: 'VII-2', razrednik: 'Edina Karić' }
+  ],
+  ucenici: [
+    { id: 1, ime: 'Amna', prezime: 'Ahmetović', razredId: 1, jmbg: '0101010170001', datumRodjenja: '2012-01-01' },
+    { id: 2, ime: 'Emir', prezime: 'Babić', razredId: 1 },
+    { id: 3, ime: 'Lejla', prezime: 'Bećirović', razredId: 1 },
+    { id: 4, ime: 'Haris', prezime: 'Čaušević', razredId: 1 },
+    { id: 5, ime: 'Ajla', prezime: 'Dezić', razredId: 1 },
+    { id: 6, ime: 'Mirza', prezime: 'Hodžić', razredId: 1 },
+    { id: 7, ime: 'Ema', prezime: 'Halilović', razredId: 1 },
+    { id: 8, ime: 'Tarik', prezime: 'Imamović', razredId: 1 },
+    { id: 9, ime: 'Selma', prezime: 'Jahić', razredId: 1 },
+    { id: 10, ime: 'Amar', prezime: 'Karić', razredId: 1 }
+  ],
+  predmeti: ['Bosanski jezik','Matematika','Engleski jezik','Historija','Geografija','Biologija','Fizika','Hemija','Informatika','Likovna kultura','Muzička kultura','Tjelesni odgoj'],
+  casovi: [
+    // PONEDJELJAK VI-1
+    { id: 1, razredId: 1, predmet: 'Bosanski jezik', dan: 1, vrijeme: '08:00', trajanje: 45, nastavnikId: 2, ucionica: '12' },
+    { id: 2, razredId: 1, predmet: 'Matematika', dan: 1, vrijeme: '08:50', trajanje: 45, nastavnikId: 3, ucionica: '15' },
+    { id: 3, razredId: 1, predmet: 'Engleski jezik', dan: 1, vrijeme: '09:45', trajanje: 45, nastavnikId: 4, ucionica: '8' },
+    { id: 4, razredId: 1, predmet: 'Historija', dan: 1, vrijeme: '10:40', trajanje: 45, nastavnikId: 2, ucionica: '12' },
+    { id: 5, razredId: 1, predmet: 'Fizika', dan: 1, vrijeme: '11:35', trajanje: 45, nastavnikId: 3, ucionica: '20' },
+    // UTORAK VI-1
+    { id: 10, razredId: 1, predmet: 'Matematika', dan: 2, vrijeme: '08:00', trajanje: 45, nastavnikId: 3, ucionica: '15' },
+    { id: 11, razredId: 1, predmet: 'Bosanski jezik', dan: 2, vrijeme: '08:50', trajanje: 45, nastavnikId: 2, ucionica: '12' },
+    { id: 12, razredId: 1, predmet: 'Engleski jezik', dan: 2, vrijeme: '09:45', trajanje: 45, nastavnikId: 4, ucionica: '8' },
+    { id: 13, razredId: 1, predmet: 'Historija', dan: 2, vrijeme: '10:40', trajanje: 45, nastavnikId: 2, ucionica: '12' },
+    // SRIJEDA VI-1
+    { id: 20, razredId: 1, predmet: 'Bosanski jezik', dan: 3, vrijeme: '08:00', trajanje: 45, nastavnikId: 2, ucionica: '12' },
+    { id: 21, razredId: 1, predmet: 'Fizika', dan: 3, vrijeme: '08:50', trajanje: 45, nastavnikId: 3, ucionica: '20' },
+    { id: 22, razredId: 1, predmet: 'Matematika', dan: 3, vrijeme: '09:45', trajanje: 45, nastavnikId: 3, ucionica: '15' },
+    { id: 23, razredId: 1, predmet: 'Engleski jezik', dan: 3, vrijeme: '10:40', trajanje: 45, nastavnikId: 4, ucionica: '8' },
+    // ČETVRTAK VI-1
+    { id: 30, razredId: 1, predmet: 'Engleski jezik', dan: 4, vrijeme: '08:00', trajanje: 45, nastavnikId: 4, ucionica: '8' },
+    { id: 31, razredId: 1, predmet: 'Matematika', dan: 4, vrijeme: '08:50', trajanje: 45, nastavnikId: 3, ucionica: '15' },
+    { id: 32, razredId: 1, predmet: 'Bosanski jezik', dan: 4, vrijeme: '09:45', trajanje: 45, nastavnikId: 2, ucionica: '12' },
+    { id: 33, razredId: 1, predmet: 'Historija', dan: 4, vrijeme: '10:40', trajanje: 45, nastavnikId: 2, ucionica: '12' },
+    // PETAK VI-1
+    { id: 40, razredId: 1, predmet: 'Matematika', dan: 5, vrijeme: '08:00', trajanje: 45, nastavnikId: 3, ucionica: '15' },
+    { id: 41, razredId: 1, predmet: 'Fizika', dan: 5, vrijeme: '08:50', trajanje: 45, nastavnikId: 3, ucionica: '20' },
+    { id: 42, razredId: 1, predmet: 'Engleski jezik', dan: 5, vrijeme: '09:45', trajanje: 45, nastavnikId: 4, ucionica: '8' },
+    { id: 43, razredId: 1, predmet: 'Bosanski jezik', dan: 5, vrijeme: '10:40', trajanje: 45, nastavnikId: 2, ucionica: '12' },
+    // VII-2 - osnovni raspored
+    { id: 50, razredId: 2, predmet: 'Matematika', dan: 1, vrijeme: '08:00', trajanje: 45, nastavnikId: 3, ucionica: '15' },
+    { id: 51, razredId: 2, predmet: 'Bosanski jezik', dan: 1, vrijeme: '08:50', trajanje: 45, nastavnikId: 2, ucionica: '12' },
+    { id: 52, razredId: 2, predmet: 'Engleski jezik', dan: 2, vrijeme: '08:00', trajanje: 45, nastavnikId: 4, ucionica: '8' },
+    { id: 53, razredId: 2, predmet: 'Matematika', dan: 3, vrijeme: '08:00', trajanje: 45, nastavnikId: 3, ucionica: '15' }
+  ],
+  lekcije: [],
+  planProgram: {},
+  materijali: [],
+  biljeske: [],
+  ocjene: [],
+  prisustva: [],
+  poruke: [],
+  zakljucniSemestri: [],
+  obavijesti: [
+    { id: 1, naslov: 'Dobrodošli u e-Dnevnik', tekst: 'Sistem je uspješno pokrenut.', datum: new Date().toISOString().split('T')[0], za: 'all' }
+  ],
+  domaci: [], // { id, razredId, predmet, naslov, opis, rok, datum, nastavnikId }
+  ispitivanja: [], // { id, razredId, predmet, tip: 'pismeno'|'usmeno'|'kontrolni'|'test', naslov, datum, vrijeme, opis, nastavnikId }
+  redari: [], // { id, razredId, ucenikIds: [], datumOd, datumDo, postavioId }
+  predmetiNastavnici: {} // { 'predmet': [razredId,razredId] } - admin dodjeljuje nastavniku predmet+razrede
+};
 
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
-
-  // Prošireni State
-  const appData = {
-    users: [], classes: [], rooms: [], schedules: [], 
-    attendance: [], grades: [], mealMenu: {},
-    announcements: [], // Novo: Obavijesti, zadaće, ispiti
-    lessonLogs: []     // Novo: Dnevnik rada / Opisi časova
-  };
-  
-  let currentUser = null;
-
-  // --- UI Helpers ---
-  const overlay = document.getElementById('overlay');
-  function showError(msg) {
-    document.querySelector('.spinner').style.display = 'none';
-    document.getElementById('loadingText').style.display = 'none';
-    const err = document.getElementById('errorMsg');
-    err.textContent = msg;
-    err.style.display = 'block';
-    document.getElementById('retryBtn').style.display = 'inline-block';
-  }
-  function hideOverlay() { overlay.style.display = 'none'; }
-  function formatDate(iso) {
-    if(!iso) return '-';
-    return new Date(iso).toLocaleDateString('hr-HR', { day:'2-digit', month:'2-digit', year:'numeric' });
-  }
-  function isOverdue(dateStr) {
-    return new Date(dateStr) < new Date();
-  }
-
-  // --- Init ---
-  async function initApp() {
-    try {
-      const keys = ['users', 'classes', 'rooms', 'schedules', 'attendance', 'grades', 'mealMenu', 'announcements', 'lessonLogs'];
-      const snaps = await Promise.all(keys.map(k => db.ref(k).once('value')));
-      
-      snaps.forEach((snap, i) => {
-        const val = snap.val();
-        const key = keys[i];
-        if (!val) appData[key] = key === 'mealMenu' ? {} : [];
-        else if (typeof val === 'object' && !Array.isArray(val) && key !== 'mealMenu') {
-          appData[key] = Object.entries(val).map(([id, d]) => ({ id, ...d }));
-        } else {
-          appData[key] = val;
-        }
-      });
-
-      checkDemoData();
-      setupListeners(keys);
-      
-      hideOverlay();
-      document.getElementById('authSection').style.display = 'block';
-    } catch (e) {
-      showError("Greška baze: " + e.message);
-    }
-  }
-
-  function setupListeners(keys) {
-    keys.forEach(key => {
-      db.ref(key).on('value', snap => {
-        const val = snap.val();
-        if (!val) appData[key] = key === 'mealMenu' ? {} : [];
-        else if (typeof val === 'object' && !Array.isArray(val) && key !== 'mealMenu') {
-          appData[key] = Object.entries(val).map(([id, d]) => ({ id, ...d }));
-        } else {
-          appData[key] = val;
-        }
-        if (currentUser) {
-          const btn = document.querySelector('#sideMenu button.active');
-          if (btn) renderContent(btn.dataset.id);
-        }
-      });
-    });
-  }
-
-  function checkDemoData() {
-    if (appData.users.length === 0) {
-      const now = new Date();
-      const future = new Date(now.getTime() + 3*24*60*60*1000).toISOString();
-      
-      const demo = {
-        users: {
-          u1: { name: 'Ivan Admin', username: 'admin', password: 'admin', role: 'admin' },
-          u2: { name: 'Marko Učitelj', username: 'marko', password: 'marko', role: 'teacher', classes: ['1A'], classTeacherOf: '1A' },
-          u3: { name: 'Ana Učenik', username: 'ana', password: 'ana', role: 'student', class: '1A' },
-          u4: { name: 'Pero Učenik', username: 'pero', password: 'pero', role: 'student', class: '1A' }
-        },
-        classes: { c1: { id: '1A', name: '1A Razred' } },
-        rooms: { r1: { id: 'R1', name: 'Učionica 1' } },
-        schedules: {
-          s1: { teacher: 'u2', classId: '1A', roomId: 'R1', day: 'Ponedjeljak', time: '08:00', lessonName: 'Matematika' }
-        },
-        mealMenu: { Ponedjeljak: 'Špageti' },
-        announcements: {
-          a1: { 
-            classId: '1A', type: 'test', title: 'Ispit iz Matematike', 
-            description: 'Gradivo: Kvadratne jednadžbe.', 
-            dueDate: future, teacherId: 'u2', createdAt: now.toISOString() 
-          },
-          a2: {
-            classId: '1A', type: 'homework', title: 'Zadaća br. 5',
-            description: 'Riješiti zadatke 1-5 na stranici 42.',
-            dueDate: future, teacherId: 'u2', createdAt: now.toISOString()
-          }
-        },
-        lessonLogs: {
-          l1: { scheduleId: 's1', date: now.toISOString(), note: 'Uvod u kvadratne jednadžbe. Zadaća: str 42.' }
-        }
-      };
-      db.ref().update(demo);
-    }
-  }
-
-  // --- Auth ---
-  window.switchTab = t => {
-    document.querySelectorAll('.tab').forEach(e => e.classList.remove('active'));
-    document.getElementById(t+'Panel').style.display = 'block';
-    document.getElementById(t==='login'?'registerPanel':'loginPanel').style.display = 'none';
-    document.querySelector(`.tab[onclick="switchTab('${t}')"]`).classList.add('active');
-    document.getElementById('authMsg').textContent = '';
-  };
-
-  document.getElementById('loginForm').onsubmit = e => {
-    e.preventDefault();
-    const u = document.getElementById('loginUser').value.trim();
-    const p = document.getElementById('loginPass').value;
-    const user = appData.users.find(x => x.username === u && x.password === p);
-    if (user) {
-      currentUser = user;
-      startDashboard();
-      e.target.reset();
-    } else {
-      document.getElementById('authMsg').textContent = 'Pogrešni podaci.';
-      document.getElementById('authMsg').className = 'msg error';
-    }
-  };
-
-  document.getElementById('registerForm').onsubmit = async e => {
-    e.preventDefault();
-    const data = {
-      name: document.getElementById('regName').value,
-      username: document.getElementById('regUser').value,
-      password: document.getElementById('regPass').value,
-      role: document.getElementById('regRole').value
-    };
-    if (appData.users.find(x => x.username === data.username)) {
-      document.getElementById('authMsg').textContent = 'Username zauzet.';
-      return;
-    }
-    await db.ref('users').push(data);
-    document.getElementById('authMsg').textContent = 'Uspješno! Prijavite se.';
-    document.getElementById('authMsg').className = 'msg success';
-    e.target.reset();
-    setTimeout(() => switchTab('login'), 1500);
-  };
-
-  // --- Dashboard ---
-  function startDashboard() {
-    document.getElementById('authSection').style.display = 'none';
-    document.getElementById('dashboard').style.display = 'flex';
-    document.getElementById('headerUser').textContent = `${currentUser.name} (${currentUser.role})`;
-    
-    const menu = document.getElementById('sideMenu');
-    menu.innerHTML = '';
-    
-    let items = [];
-    if (currentUser.role === 'admin') {
-      items = [
-        {id:'users', label:'Korisnici', icon:'groups'},
-        {id:'classes', label:'Razredi', icon:'class'},
-        {id:'schedule', label:'Raspored', icon:'schedule'},
-        {id:'menu', label:'Jelovnik', icon:'restaurant_menu'}
-      ];
-    } else if (currentUser.role === 'teacher') {
-      items = [
-        {id:'mySchedule', label:'Moj Raspored', icon:'schedule'},
-        {id:'myClasses', label:'Moji Razredi', icon:'groups'},
-        {id:'announcements', label:'Obavijesti i Zadaće', icon:'campaign'}
-      ];
-    } else {
-      items = [
-        {id:'mySchedule', label:'Moj Raspored', icon:'schedule'},
-        {id:'myTasks', label:'Zadaće i Ispiti', icon:'assignment_late'},
-        {id:'myGrades', label:'Ocjene', icon:'grade'},
-        {id:'myDiary', label:'Dnevnik Rada', icon:'menu_book'},
-        {id:'myAbs', label:'Izostanci', icon:'warning'}
-      ];
-    }
-
-    items.forEach((it, idx) => {
-      const btn = document.createElement('button');
-      btn.dataset.id = it.id;
-      btn.innerHTML = `<span class="material-icons">${it.icon}</span> ${it.label}`;
-      btn.onclick = () => {
-        document.querySelectorAll('#sideMenu button').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        renderContent(it.id);
-      };
-      menu.appendChild(btn);
-      if (idx === 0) setTimeout(() => btn.click(), 50);
-    });
-
-    const logout = document.createElement('button');
-    logout.style.marginTop = 'auto';
-    logout.style.color = '#f87171';
-    logout.innerHTML = '<span class="material-icons">logout</span> Odjava';
-    logout.onclick = () => {
-      currentUser = null;
-      document.getElementById('dashboard').style.display = 'none';
-      document.getElementById('authSection').style.display = 'block';
-      switchTab('login');
-    };
-    menu.appendChild(logout);
-  }
-
-  // --- Render Dispatcher ---
-  window.renderContent = function(id) {
-    const main = document.getElementById('mainContent');
-    switch(id) {
-      case 'users': renderUsers(main); break;
-      case 'classes': renderClasses(main); break;
-      case 'schedule': renderScheduleAdmin(main); break;
-      case 'menu': renderMenu(main); break;
-      case 'mySchedule': renderMySchedule(main); break;
-      case 'myClasses': renderTeacherClasses(main); break;
-      case 'announcements': renderTeacherAnnouncements(main); break;
-      case 'myTasks': renderStudentTasks(main); break;
-      case 'myGrades': renderStudentGrades(main); break;
-      case 'myDiary': renderStudentDiary(main); break;
-      case 'myAbs': renderStudentAbs(main); break;
-    }
-  };
-
-  // --- Admin: Users ---
-  function renderUsers(main) {
-    main.innerHTML = `
-      <h3>Upravljanje korisnicima</h3>
-      <div class="card">
-        <form id="addUserFrm" class="grid-2">
-          <input id="nuName" placeholder="Ime i prezime" required>
-          <input id="nuUser" placeholder="Korisničko ime" required>
-          <input id="nuPass" placeholder="Lozinka" required>
-          <select id="nuRole" required>
-            <option value="">Uloga</option>
-            <option value="admin">Admin</option>
-            <option value="teacher">Učitelj</option>
-            <option value="student">Učenik</option>
-          </select>
-          <select id="nuClass">
-            <option value="">Razred (za učenike/razrednike)</option>
-            ${appData.classes.map(c => `<option value="${c.id}">${c.id}</option>`).join('')}
-          </select>
-          <select id="nuClassTeacher">
-            <option value="">Razrednik?</option>
-            <option value="yes">Da, razrednik</option>
-            <option value="no">Ne</option>
-          </select>
-          <button class="primary" style="grid-column:span 2;">Dodaj korisnika</button>
-        </form>
-      </div>
-      <div style="overflow-x:auto;">
-        <table><thead><tr><th>Ime</th><th>Uloga</th><th>Razred</th><th>Razrednik</th><th>Akcija</th></tr></thead><tbody id="uTbl"></tbody></table>
-      </div>
-    `;
-    document.getElementById('uTbl').innerHTML = appData.users.map(u => {
-      const cls = u.class || (u.classes?.[0]) || '-';
-      const isRaz = u.classTeacherOf ? `<span class="badge success">Razrednik ${u.classTeacherOf}</span>` : '-';
-      return `
-        <tr>
-          <td>${u.name}</td>
-          <td><span class="badge ${u.role}">${u.role}</span></td>
-          <td>${cls}</td>
-          <td>${isRaz}</td>
-          <td><button class="secondary sm" onclick="delUser('${u.id}')">Izbriši</button></td>
-        </tr>
-      `;
-    }).join('');
-
-    document.getElementById('addUserFrm').onsubmit = async e => {
-      e.preventDefault();
-      const role = document.getElementById('nuRole').value;
-      const cls = document.getElementById('nuClass').value;
-      const isRaz = document.getElementById('nuClassTeacher').value === 'yes';
-      
-      const u = {
-        name: document.getElementById('nuName').value,
-        username: document.getElementById('nuUser').value,
-        password: document.getElementById('nuPass').value,
-        role: role
-      };
-      if (role === 'student') u.class = cls || null;
-      if (role === 'teacher') {
-        u.classes = cls ? [cls] : [];
-        if (isRaz && cls) u.classTeacherOf = cls;
+function loadData() {
+  try {
+    const saved = localStorage.getItem('edn_data_v3');
+    if (saved) {
+      const data = JSON.parse(saved);
+      if (!data.users || !data.users.find(u => u.username === 'admin')) {
+        return JSON.parse(JSON.stringify(DEFAULT_DATA));
       }
-      
-      await db.ref('users').push(u);
-      e.target.reset();
-    };
+      return data;
+    }
+  } catch(e) { console.error(e); }
+  return JSON.parse(JSON.stringify(DEFAULT_DATA));
+}
+function saveData() { localStorage.setItem('edn_data_v3', JSON.stringify(DB)); }
+let DB = loadData();
+['skola','users','razredi','ucenici','predmeti','casovi','lekcije','planProgram','materijali','biljeske','ocjene','prisustva','poruke','zakljucniSemestri','obavijesti','domaci','ispitivanja','redari'].forEach(k=>{
+  if (DB[k]===undefined) DB[k] = Array.isArray(DEFAULT_DATA[k]) ? [] : (typeof DEFAULT_DATA[k]==='object' ? {...DEFAULT_DATA[k]} : DEFAULT_DATA[k]);
+});
+let currentUser = null;
+let currentView = '';
+let viewState = {};
+
+// =========================== AUTH ===========================
+function doLogin() {
+  const u = document.getElementById('loginUser').value.trim();
+  const p = document.getElementById('loginPass').value;
+  const err = document.getElementById('loginError');
+  if (!u || !p) { err.textContent='Unesite korisničko ime i lozinku'; err.classList.remove('hidden'); return; }
+  const user = DB.users.find(x => x.username.toLowerCase()===u.toLowerCase() && x.password===p);
+  if (!user) { err.textContent='Pogrešno korisničko ime ili lozinka'; err.classList.remove('hidden'); return; }
+  err.classList.add('hidden');
+  currentUser = user;
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('mainApp').classList.remove('hidden');
+  document.getElementById('userBadge').textContent = user.name;
+  // na mobilnoj sidebar zatvoren, na desktopu otvoren
+  const sb = document.getElementById('sidebar');
+  sb.classList.remove('hidden','open');
+  document.body.classList.remove('sidebar-open');
+  buildSidebar();
+  updateNotifBadge();
+  if (user.role === 'nastavnik') {
+    try {
+      const cas = getTrenutniCas(user.id);
+      if (cas) {
+        showNotification(`📚 Trenutni čas: ${cas.predmet} - ${getRazredName(cas.razredId)}`);
+        navigate('dnevnik', { razredId: cas.razredId, predmet: cas.predmet });
+        return;
+      }
+    } catch(e) {}
   }
-  window.delUser = async id => { if(confirm('Izbrisati korisnika?')) await db.ref(`users/${id}`).remove(); };
+  navigate('pocetna');
+}
+document.getElementById('loginForm').addEventListener('submit', e => { e.preventDefault(); doLogin(); });
+['loginUser','loginPass'].forEach(id => document.getElementById(id).addEventListener('keydown', e => { if (e.key==='Enter') { e.preventDefault(); doLogin(); }}));
 
-  // --- Admin: Classes & Schedule ---
-  function renderClasses(main) {
-    main.innerHTML = `
-      <h3>Razredi</h3>
-      <div class="card">
-        <form id="addClsFrm" style="display:flex; gap:10px;">
-          <input id="ncId" placeholder="Šifra" required style="flex:1">
-          <input id="ncName" placeholder="Naziv" required style="flex:2">
-          <button class="primary">Dodaj</button>
-        </form>
-      </div>
-      <table><tbody>
-        ${appData.classes.map(c => `<tr><td>${c.id}</td><td>${c.name}</td><td><button class="secondary sm" onclick="delClass('${c.id}')">X</button></td></tr>`).join('')}
-      </tbody></table>
-    `;
-    document.getElementById('addClsFrm').onsubmit = async e => {
-      e.preventDefault();
-      await db.ref('classes').push({ id: document.getElementById('ncId').value.toUpperCase(), name: document.getElementById('ncName').value });
-      e.target.reset();
-    };
+function logout() {
+  currentUser = null;
+  document.getElementById('mainApp').classList.add('hidden');
+  document.getElementById('loginScreen').classList.remove('hidden');
+  document.getElementById('loginForm').reset();
+  document.getElementById('loginError').classList.add('hidden');
+}
+document.getElementById('closeBtn').addEventListener('click', () => { if (confirm('Odjaviti se?')) logout(); });
+document.getElementById('toggleSidebar').addEventListener('click', () => {
+  const sb = document.getElementById('sidebar');
+  if (window.innerWidth <= 768) {
+    // na mobilnoj se uvijek koristi 'open' klasa, 'hidden' uklanjamo
+    sb.classList.remove('hidden');
+    sb.classList.toggle('open');
+    document.body.classList.toggle('sidebar-open', sb.classList.contains('open'));
+  } else {
+    sb.classList.remove('open');
+    document.body.classList.remove('sidebar-open');
+    sb.classList.toggle('hidden');
   }
-  window.delClass = async id => { if(confirm('Brisanje?')) await db.ref(`classes/${id}`).remove(); };
-
-  function renderScheduleAdmin(main) {
-    main.innerHTML = `
-      <h3>Globalni Raspored</h3>
-      <div class="card">
-        <form id="addSchFrm" class="grid-2">
-          <select id="schDay" required><option value="">Dan</option><option>Ponedjeljak</option><option>Utorak</option><option>Srijeda</option><option>Četvrtak</option><option>Petak</option></select>
-          <input id="schTime" placeholder="Vrijeme" required>
-          <select id="schTeacher" required><option value="">Učitelj</option>${appData.users.filter(u=>u.role==='teacher').map(u=>`<option value="${u.id}">${u.name}</option>`).join('')}</select>
-          <select id="schClass" required><option value="">Razred</option>${appData.classes.map(c=>`<option value="${c.id}">${c.id}</option>`).join('')}</select>
-          <select id="schRoom" required><option value="">Učionica</option>${appData.rooms.map(r=>`<option value="${r.id}">${r.name}</option>`).join('')}</select>
-          <input id="schLesson" placeholder="Predmet" required>
-          <button class="primary" style="grid-column:span 2;">Dodaj termin</button>
-        </form>
-      </div>
-      <table><thead><tr><th>Dan</th><th>Vrijeme</th><th>Predmet</th><th>Učitelj</th><th>Razred</th><th>Akcija</th></tr></thead><tbody id="schTbl"></tbody></table>
-    `;
-    document.getElementById('schTbl').innerHTML = appData.schedules.map(s => {
-      const t = appData.users.find(u=>u.id===s.teacher)?.name || '?';
-      return `<tr><td>${s.day}</td><td>${s.time}</td><td>${s.lessonName}</td><td>${t}</td><td>${s.classId}</td><td><button class="secondary sm" onclick="delSch('${s.id}')">X</button></td></tr>`;
-    }).join('');
-
-    document.getElementById('addSchFrm').onsubmit = async e => {
-      e.preventDefault();
-      const day = document.getElementById('schDay').value;
-      const time = document.getElementById('schTime').value;
-      const teacher = document.getElementById('schTeacher').value;
-      const room = document.getElementById('schRoom').value;
-      
-      const conflict = appData.schedules.find(s => s.day === day && s.time === time && (s.teacher === teacher || s.roomId === room));
-      if (conflict) { alert('Sukob termina!'); return; }
-
-      await db.ref('schedules').push({
-        day, time, teacher, classId: document.getElementById('schClass').value,
-        roomId: room, lessonName: document.getElementById('schLesson').value
-      });
-      e.target.reset();
-    };
+});
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.body.classList.remove('sidebar-open');
+}
+// Zatvori sidebar kad se klikne stavka na mobilnoj
+document.addEventListener('click', e => {
+  if (window.innerWidth <= 768 && e.target.closest('.sidebar-item')) {
+    closeSidebar();
   }
-  window.delSch = async id => { if(confirm('Brisanje?')) await db.ref(`schedules/${id}`).remove(); };
-  function renderMenu(main) {
-    main.innerHTML = `<h3>Jelovnik</h3><table>${Object.entries(appData.mealMenu).map(([d,m])=>`<tr><td>${d}</td><td>${m}</td></tr>`).join('')}</table>`;
-  }
+});
+// Zatvori sidebar pri resize na desktop
+window.addEventListener('resize', () => {
+  if (window.innerWidth > 768) closeSidebar();
+});
+document.getElementById('notifBtn').addEventListener('click', toggleNotifPanel);
 
-  // --- Teacher: Schedule & Lesson Modal ---
-  function renderMySchedule(main) {
-    const list = appData.schedules.filter(s => 
-      currentUser.role === 'teacher' ? s.teacher === currentUser.id : s.classId === currentUser.class
-    );
-    main.innerHTML = `<h3>Moj Raspored</h3>
-      ${list.length ? `<table><thead><tr><th>Dan</th><th>Vrijeme</th><th>Predmet</th><th>Razred/Učionica</th><th>Akcija</th></tr></thead><tbody>
-        ${list.map(s => {
-          const action = currentUser.role === 'teacher' 
-            ? `<button class="primary sm" onclick="openLessonModal('${s.id}')">Evidencija</button>` 
-            : '-';
-          return `<tr><td>${s.day}</td><td>${s.time}</td><td>${s.lessonName}</td><td>${s.classId} / ${s.roomId}</td><td>${action}</td></tr>`;
-        }).join('')}
-      </tbody></table>` : '<div class="card">Nema rasporeda.</div>'}
-    `;
-  }
+// =========================== CLOCK & HELPERS ===========================
+function updateClock() {
+  try {
+    const dani = ['Nedjelja','Ponedjeljak','Utorak','Srijeda','Četvrtak','Petak','Subota'];
+    const n = new Date();
+    const el = document.getElementById('currentTime');
+    if (el) el.textContent = `${dani[n.getDay()]} ${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`;
+  } catch(e){}
+}
+setInterval(updateClock, 1000); updateClock();
 
-  window.openLessonModal = function(schId) {
-    const sch = appData.schedules.find(s => s.id === schId);
-    const students = appData.users.filter(u => u.role === 'student' && u.class === sch.classId);
-    const isRazrednik = currentUser.classTeacherOf === sch.classId;
-    
-    const attMap = {};
-    appData.attendance.filter(a => a.scheduleId === schId).forEach(a => attMap[a.studentId] = a);
-    const gradesList = appData.grades.filter(g => g.scheduleId === schId);
-    
-    // Dohvati log za ovaj čas ako postoji
-    const log = appData.lessonLogs.find(l => l.scheduleId === schId);
-    const logNote = log ? log.note : '';
+function getTrenutniCas(nastId) {
+  const n = new Date();
+  const day = n.getDay();
+  const time = n.getHours()*60 + n.getMinutes();
+  return DB.casovi.find(c => {
+    if (c.nastavnikId !== nastId || c.dan !== day) return false;
+    const [h,m] = c.vrijeme.split(':').map(Number);
+    return time >= h*60+m && time <= h*60+m + (c.trajanje||45);
+  });
+}
+function getSljedeciCas(nastId) {
+  const n = new Date();
+  const day = n.getDay();
+  const time = n.getHours()*60 + n.getMinutes();
+  return DB.casovi.filter(c=>c.nastavnikId===nastId && c.dan===day).filter(c=>{
+    const [h,m] = c.vrijeme.split(':').map(Number);
+    return h*60+m > time;
+  }).sort((a,b)=>a.vrijeme.localeCompare(b.vrijeme))[0];
+}
+function getCasoviToday(nastId) {
+  return DB.casovi.filter(c=>c.nastavnikId===nastId && c.dan===new Date().getDay()).sort((a,b)=>a.vrijeme.localeCompare(b.vrijeme));
+}
+function getRazredName(id) { return DB.razredi.find(r=>r.id===id)?.naziv || '-'; }
+function getNastavnikName(id) { return DB.users.find(u=>u.id===id)?.name || '-'; }
+function getDanName(d) { return ['Nedjelja','Ponedjeljak','Utorak','Srijeda','Četvrtak','Petak','Subota'][d]; }
+function getCurrentSemester() { const m=new Date().getMonth(); return (m>=8||m<=0)?1:2; }
+function isSemesterLocked(razredId, predmet, sem) { return DB.zakljucniSemestri.some(z=>z.razredId===razredId&&z.predmet===predmet&&z.semestar===sem); }
+function fmtDate(d) { if (!d) return ''; return d.split('-').reverse().join('.')+'.'; }
+function todayISO() { return new Date().toISOString().split('T')[0]; }
 
-    const html = `
-      <p><strong>${sch.lessonName}</strong> | ${sch.day} ${sch.time} | ${sch.classId}</p>
-      
-      <div class="card" style="margin-bottom:16px; background:#253347;">
-        <label>Opis časa / Gradivo (Vidljivo u dnevniku)</label>
-        <textarea id="lessonNote" placeholder="Npr. Obrađena kvadratna jednadžba, zadana zadaća...">${logNote}</textarea>
-      </div>
+function showNotification(text, type='success') {
+  const c = document.getElementById('notifContainer');
+  const n = document.createElement('div');
+  n.className = 'notification';
+  if (type==='error') n.style.background = '#dc2626';
+  else if (type==='info') n.style.background = '#2563eb';
+  const icon = type==='error'?'⚠':type==='info'?'ℹ':'✓';
+  n.innerHTML = `<span style="font-size:1.3em">${icon}</span><span>${text}</span>`;
+  c.appendChild(n);
+  setTimeout(()=>{ n.style.animation='slideIn 0.3s reverse'; setTimeout(()=>n.remove(),300); }, 3500);
+}
 
-      <form id="lessonForm">
-        <div class="lesson-grid header">
-          <div>Učenik</div><div>Pris.</div><div>Ocjena</div><div>Tip</div><div>Opis</div><div>Status</div>
+function avgOcjena(arr) {
+  // NPS se ne računa u prosjek
+  const a = arr.filter(o=>!o.zamjenjeno && !o.zakljucna && o.vrijednost!=='NPS' && !isNaN(+o.vrijednost)).map(o=>+o.vrijednost);
+  if (!a.length) return '-';
+  return (a.reduce((x,y)=>x+y,0)/a.length).toFixed(2);
+}
+
+// =========================== NOTIFICATIONS PANEL ===========================
+function getUserObavijesti() {
+  return DB.obavijesti.filter(o => o.za==='all' || o.za===currentUser.role || o.zaId===currentUser.id).sort((a,b)=>b.datum.localeCompare(a.datum));
+}
+function updateNotifBadge() {
+  const list = getUserObavijesti().slice(0,5);
+  const badge = document.getElementById('notifBadge');
+  if (list.length) { badge.textContent = list.length; badge.classList.remove('hidden'); }
+  else badge.classList.add('hidden');
+}
+function toggleNotifPanel() {
+  const ex = document.getElementById('notifPanel');
+  if (ex) { ex.remove(); return; }
+  const list = getUserObavijesti();
+  const panel = document.createElement('div');
+  panel.id = 'notifPanel';
+  panel.className = 'fixed top-14 right-4 w-80 bg-white rounded-xl shadow-2xl border z-50 fade-in';
+  panel.innerHTML = `
+    <div class="p-4 border-b flex justify-between items-center">
+      <h3 class="font-semibold">Obavještenja</h3>
+      <button onclick="document.getElementById('notifPanel').remove()" class="text-gray-400 hover:text-gray-600">✕</button>
+    </div>
+    <div class="max-h-96 overflow-y-auto">
+      ${list.length ? list.map(o=>`<div class="p-3 border-b hover:bg-gray-50 cursor-pointer">
+        <div class="font-medium text-sm">${o.naslov}</div>
+        <div class="text-xs text-gray-600 mt-1">${o.tekst}</div>
+        <div class="text-xs text-gray-400 mt-1">${fmtDate(o.datum)}</div>
+      </div>`).join('') : '<div class="p-6 text-center text-gray-400">Nema obavještenja</div>'}
+    </div>`;
+  document.getElementById('panelContainer').appendChild(panel);
+}
+
+// =========================== SIDEBAR ===========================
+const ICONS = {
+  home:'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6',
+  book:'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253',
+  users:'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z',
+  student:'M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z',
+  school:'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+  star:'M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z',
+  cal:'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
+  doc:'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+  mail:'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z',
+  set:'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z',
+  out:'M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1',
+  folder:'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z',
+  note:'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z',
+  chart:'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
+  homework:'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4',
+  exam:'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2zM12 7v4m0 4h.01',
+  badge:'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z'
+};
+const MENU = {
+  admin: [['pocetna','Početna','home'],['korisnici','Korisnici','users'],['razredi','Razredi','school'],['ucenici','Učenici','student'],['predmeti','Predmeti','book'],['raspored','Raspored','cal'],['ispitivanja','Ispitivanja','exam'],['ocjene_pregled','Pregled ocjena','star'],['izvjestaji','Izvještaji','chart'],['poruke','Poruke','mail'],['postavke','Postavke','set'],['odjava','Odjava','out']],
+  nastavnik: [['pocetna','Početna','home'],['mojicasovi','Moji časovi','cal'],['dnevnik','Dnevnik','book'],['planprogram','Plan i program','folder'],['materijali','Materijali','doc'],['biljeske','Bilješke','note'],['domaci','Domaće zadaće','homework'],['ispitivanja','Ispitivanja','exam'],['redari','Redari','badge'],['ucenici','Učenici','student'],['ocjene','Ocjene','star'],['raspored','Raspored','cal'],['poruke','Poruke','mail'],['postavke','Postavke','set'],['odjava','Odjava','out']],
+  ucenik: [['pocetna','Početna','home'],['mojeocjene','Moje ocjene','star'],['mojeprisustvo','Prisustvo','student'],['mojiraspored','Raspored','cal'],['mojiispiti','Najave ispita','exam'],['mojimaterijali','Materijali','doc'],['mojidomaci','Zadaće','homework'],['poruke','Poruke','mail'],['postavke','Postavke','set'],['odjava','Odjava','out']]
+};
+function buildSidebar() {
+  document.getElementById('sidebarNav').innerHTML = MENU[currentUser.role].map(([k,n,i]) => `
+    <button onclick="navigate('${k}')" data-key="${k}" class="sidebar-item w-full flex items-center gap-3 px-5 py-3 text-gray-700 text-left">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${ICONS[i]}"/></svg>
+      <span>${n}</span>
+    </button>`).join('');
+}
+function setActiveSidebar(k) { document.querySelectorAll('.sidebar-item').forEach(b => b.classList.toggle('active', b.dataset.key===k)); }
+
+function navigate(view, state={}) {
+  if (view==='odjava') { if(confirm('Odjaviti se?')) logout(); return; }
+  currentView = view; viewState = state;
+  setActiveSidebar(view);
+  const c = document.getElementById('mainContent');
+  c.classList.remove('fade-in'); void c.offsetWidth; c.classList.add('fade-in');
+  const r = RENDERERS[view];
+  if (r) r(c, state);
+  else c.innerHTML = '<div class="empty-state">Stranica u izradi</div>';
+}
+const RENDERERS = {};
+
+// =========================== POČETNA ===========================
+RENDERERS.pocetna = function(c) {
+  if (currentUser.role==='admin') return renderAdminHome(c);
+  if (currentUser.role==='nastavnik') return renderNastavnikHome(c);
+  return renderUcenikHome(c);
+};
+
+function renderAdminHome(c) {
+  const today = todayISO();
+  c.innerHTML = `
+    <div class="mb-6">
+      <h2 class="text-3xl font-bold text-gray-800">Dobrodošli, ${currentUser.name}</h2>
+      <p class="text-gray-500 mt-1">${DB.skola.naziv} • Školska godina ${DB.skola.godina}</p>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      ${[
+        ['Korisnika', DB.users.length, 'blue', 'users'],
+        ['Učenika', DB.ucenici.length, 'green', 'student'],
+        ['Razreda', DB.razredi.length, 'purple', 'school'],
+        ['Predmeta', DB.predmeti.length, 'orange', 'book'],
+        ['Časova', DB.casovi.length, 'pink', 'cal'],
+        ['Ocjena', DB.ocjene.filter(o=>!o.zamjenjeno).length, 'indigo', 'star'],
+        ['Materijala', DB.materijali.length, 'yellow', 'doc'],
+        ['Lekcija', DB.lekcije.length, 'teal', 'folder']
+      ].map(([n,v,col,ic])=>`
+        <div onclick="navigate('${ic==='users'?'korisnici':ic==='student'?'ucenici':ic==='school'?'razredi':ic==='book'?'predmeti':ic==='cal'?'raspored':ic==='star'?'ocjene_pregled':'izvjestaji'}')" class="stat-card bg-white border rounded-xl p-5">
+          <div class="bg-${col}-100 text-${col}-700 w-12 h-12 rounded-lg flex items-center justify-center mb-3">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${ICONS[ic]}"/></svg>
+          </div>
+          <div class="text-3xl font-bold text-gray-800">${v}</div>
+          <div class="text-sm text-gray-500 mt-1">${n}</div>
+        </div>`).join('')}
+    </div>
+    <div class="grid md:grid-cols-2 gap-6">
+      <div class="bg-white border rounded-xl p-6">
+        <h3 class="font-semibold text-lg mb-4">📊 Prosjek po razredima</h3>
+        <div class="space-y-3">
+          ${DB.razredi.map(r=>{
+            const oc = DB.ocjene.filter(o=>{ const u=DB.ucenici.find(x=>x.id===o.ucenikId); return u?.razredId===r.id && !o.zamjenjeno && !o.zakljucna; });
+            const avg = parseFloat(avgOcjena(oc))||0;
+            return `<div>
+              <div class="flex justify-between text-sm mb-1"><span class="font-medium">${r.naziv}</span><span class="font-bold text-blue-700">${avg.toFixed(2)}</span></div>
+              <div class="w-full bg-gray-200 rounded-full h-2"><div class="bg-blue-600 h-2 rounded-full" style="width:${(avg/5)*100}%"></div></div>
+            </div>`;
+          }).join('') || '<p class="text-gray-400 text-sm">Nema podataka</p>'}
         </div>
-        <div id="studentsList">
-          ${students.map(st => {
-            const att = attMap[st.id];
-            const isPresent = att ? att.status !== 'absent' : true;
-            const isJustified = att && att.status === 'justified';
-            const stGrades = gradesList.filter(g => g.studentId === st.id);
-            const lastG = stGrades.length ? stGrades[stGrades.length-1] : { grade: '', type: 'usmeno', desc: '' };
-            
-            return `
-              <div class="lesson-grid">
-                <div>${st.name}</div>
-                <div><input type="checkbox" class="chkPres" data-sid="${st.id}" ${isPresent?'checked':''}></div>
-                <div><input type="number" class="inpGrade" data-sid="${st.id}" value="${lastG.grade || ''}" min="1" max="5" step="0.5"></div>
-                <div>
-                  <select class="selType" data-sid="${st.id}">
-                    <option value="usmeno" ${lastG.type==='usmeno'?'selected':''}>Usmeno</option>
-                    <option value="pismeno" ${lastG.type==='pismeno'?'selected':''}>Pismeno</option>
-                    <option value="test" ${lastG.type==='test'?'selected':''}>Test</option>
-                    <option value="zadaća" ${lastG.type==='zadaća'?'selected':''}>Zadaća</option>
-                  </select>
-                </div>
-                <div><input type="text" class="inpDesc" data-sid="${st.id}" value="${lastG.desc || ''}" placeholder="..."></div>
-                <div>
-                  ${!isPresent ? (
-                    isJustified ? '<span class="badge justified">Pravdano</span>' 
-                    : (isRazrednik ? `<button type="button" class="success sm btnJustify" data-sid="${st.id}">Pravdaj</button>` : '<span class="badge absent">Nepravdano</span>')
-                  ) : '-'}
-                </div>
+      </div>
+      <div class="bg-white border rounded-xl p-6">
+        <h3 class="font-semibold text-lg mb-4">🕐 Posljednje aktivnosti</h3>
+        <ul class="space-y-2 text-sm">
+          ${DB.ocjene.slice(-5).reverse().map(o=>{
+            const u = DB.ucenici.find(x=>x.id===o.ucenikId);
+            return `<li class="flex items-center gap-2 py-2 border-b last:border-0"><span class="ocjena-chip ocjena-${o.vrijednost} text-xs" style="cursor:default">${o.vrijednost}</span><span>${u?.prezime} ${u?.ime} • ${o.predmet}</span><span class="ml-auto text-xs text-gray-400">${fmtDate(o.datum)}</span></li>`;
+          }).join('') || '<li class="text-gray-400">Nema aktivnosti</li>'}
+        </ul>
+      </div>
+    </div>`;
+}
+
+function renderNastavnikHome(c) {
+  const today = getCasoviToday(currentUser.id);
+  const trenutni = getTrenutniCas(currentUser.id);
+  const sljedeci = getSljedeciCas(currentUser.id);
+  const myOcjene = DB.ocjene.filter(o=>o.nastavnikId===currentUser.id);
+  const mojiRazredi = [...new Set((currentUser.zaduzenja||[]).flatMap(z=>z.razrediIds))];
+  const nadIspiti = DB.ispitivanja.filter(i=>mojiRazredi.includes(i.razredId) && new Date(i.datum)>=new Date(todayISO())).sort((a,b)=>a.datum.localeCompare(b.datum)).slice(0,3);
+  const isRazrednik = !!currentUser.razrednikRazredId;
+  const redariDanas = isRazrednik ? DB.redari.find(r=>r.razredId===currentUser.razrednikRazredId && new Date(todayISO())>=new Date(r.datumOd) && new Date(todayISO())<=new Date(r.datumDo)) : null;
+  c.innerHTML = `
+    <div class="mb-6">
+      <h2 class="text-3xl font-bold text-gray-800">Dobrodošli, ${currentUser.name}</h2>
+      <p class="text-gray-500 mt-1">${getDanName(new Date().getDay())} • ${(currentUser.predmeti||[]).join(', ')}</p>
+    </div>
+    ${trenutni ? `
+      <div class="bg-gradient-to-r from-blue-600 to-blue-800 text-white rounded-2xl p-6 mb-6 pulse-now shadow-lg">
+        <div class="flex justify-between items-center">
+          <div>
+            <p class="text-sm text-blue-100 font-semibold uppercase tracking-wider">▶ Trenutni čas</p>
+            <h3 class="text-3xl font-bold mt-1">${trenutni.predmet}</h3>
+            <p class="text-blue-100 mt-1">${getRazredName(trenutni.razredId)} • ${trenutni.vrijeme} ${trenutni.ucionica?'• Učionica '+trenutni.ucionica:''}</p>
+          </div>
+          <button onclick="navigate('dnevnik',{razredId:${trenutni.razredId},predmet:'${trenutni.predmet}'})" class="bg-white text-blue-700 hover:bg-blue-50 px-6 py-3 rounded-lg font-bold shadow-lg transition">Otvori dnevnik →</button>
+        </div>
+      </div>` : sljedeci ? `
+      <div class="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-5 mb-6">
+        <p class="text-sm text-yellow-700 font-semibold">⏰ Sljedeći čas</p>
+        <h3 class="text-xl font-bold text-yellow-900 mt-1">${sljedeci.predmet} • ${getRazredName(sljedeci.razredId)}</h3>
+        <p class="text-yellow-800 text-sm">${sljedeci.vrijeme}</p>
+      </div>` : ''}
+    <div class="grid md:grid-cols-4 gap-4 mb-6">
+      <div class="bg-white border rounded-xl p-5"><div class="text-sm text-gray-500">Današnji časovi</div><div class="text-3xl font-bold text-blue-700 mt-1">${today.length}</div></div>
+      <div class="bg-white border rounded-xl p-5"><div class="text-sm text-gray-500">Ukupno ocjena</div><div class="text-3xl font-bold text-green-700 mt-1">${myOcjene.length}</div></div>
+      <div class="bg-white border rounded-xl p-5"><div class="text-sm text-gray-500">Materijala</div><div class="text-3xl font-bold text-purple-700 mt-1">${DB.materijali.filter(m=>m.nastavnikId===currentUser.id).length}</div></div>
+      <div class="bg-white border rounded-xl p-5"><div class="text-sm text-gray-500">Najavljenih ispita</div><div class="text-3xl font-bold text-red-700 mt-1">${DB.ispitivanja.filter(i=>i.nastavnikId===currentUser.id && new Date(i.datum)>=new Date(todayISO())).length}</div></div>
+    </div>
+    ${isRazrednik ? `<div class="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-300 rounded-xl p-5 mb-6">
+      <div class="flex justify-between items-center">
+        <div>
+          <div class="flex items-center gap-2"><span class="text-2xl">🛡</span><h3 class="font-bold text-yellow-900">Razrednik ste razreda ${getRazredName(currentUser.razrednikRazredId)}</h3></div>
+          ${redariDanas ? `<p class="text-sm text-yellow-800 mt-2">Današnji redari: <b>${redariDanas.ucenikIds.map(id=>{const us=DB.ucenici.find(x=>x.id===id);return us?us.prezime+' '+us.ime:''}).join(', ')}</b></p>` : '<p class="text-sm text-yellow-700 mt-2">Niste dodijelili redare za danas.</p>'}
+        </div>
+        <button onclick="navigate('redari')" class="btn-primary px-4 py-2 rounded-lg font-semibold">Upravljaj redarima →</button>
+      </div>
+    </div>`:''}
+    ${nadIspiti.length ? `<div class="bg-white border rounded-xl p-5 mb-6">
+      <h3 class="font-bold text-lg mb-3">📢 Nadolazeća ispitivanja</h3>
+      <div class="space-y-2">
+        ${nadIspiti.map(isp=>{
+          const daysLeft = Math.ceil((new Date(isp.datum)-new Date(todayISO()))/(1000*60*60*24));
+          return `<div class="flex justify-between items-center p-3 rounded-lg border ispitivanje-${isp.tip}">
+            <div>
+              <div class="font-semibold">${isp.naslov} <span class="badge ${isp.tip==='pismeno'?'bg-red-100 text-red-700':isp.tip==='usmeno'?'bg-orange-100 text-orange-700':isp.tip==='kontrolni'?'bg-yellow-100 text-yellow-700':'bg-blue-100 text-blue-700'} ml-2">${isp.tip}</span></div>
+              <div class="text-sm text-gray-600">${isp.predmet} • ${getRazredName(isp.razredId)} • ${fmtDate(isp.datum)} u ${isp.vrijeme}</div>
+            </div>
+            <span class="badge ${daysLeft<=1?'bg-red-100 text-red-700':daysLeft<=3?'bg-yellow-100 text-yellow-700':'bg-green-100 text-green-700'}">${daysLeft===0?'DANAS!':daysLeft+' dana'}</span>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`:''}
+    <div class="bg-white border rounded-xl p-6">
+      <h3 class="font-semibold text-lg mb-4">📅 Današnji raspored</h3>
+      <div class="space-y-2">
+        ${today.length ? today.map(cas=>{
+          const isNow = trenutni && trenutni.id===cas.id;
+          const isNext = sljedeci && sljedeci.id===cas.id;
+          return `<div class="flex items-center justify-between p-3 rounded-lg border ${isNow?'border-blue-500 bg-blue-50':isNext?'border-yellow-400 bg-yellow-50':'border-gray-200 hover:bg-gray-50'} transition">
+            <div class="flex items-center gap-4">
+              <div class="text-lg font-bold text-blue-700 w-16">${cas.vrijeme}</div>
+              <div>
+                <div class="font-semibold">${cas.predmet} ${isNow?'<span class="badge bg-blue-100 text-blue-700 ml-2">SAD</span>':isNext?'<span class="badge bg-yellow-100 text-yellow-700 ml-2">SLJEDEĆI</span>':''}</div>
+                <div class="text-sm text-gray-500">${getRazredName(cas.razredId)} ${cas.ucionica?'• učionica '+cas.ucionica:''}</div>
               </div>
-            `;
+            </div>
+            <button onclick="navigate('dnevnik',{razredId:${cas.razredId},predmet:'${cas.predmet}'})" class="text-blue-600 hover:underline text-sm font-medium">Dnevnik →</button>
+          </div>`;
+        }).join('') : '<div class="empty-state">Nemate časova danas</div>'}
+      </div>
+    </div>`;
+}
+
+function renderUcenikHome(c) {
+  const u = DB.ucenici.find(x=>x.id===currentUser.ucenikId);
+  if (!u) { c.innerHTML = '<div class="empty-state">Nema povezanog učenika. Kontaktirajte administratora.</div>'; return; }
+  const ocj = DB.ocjene.filter(o=>o.ucenikId===u.id);
+  const aktivne = ocj.filter(o=>!o.zamjenjeno && !o.zakljucna);
+  const izost = DB.prisustva.filter(p=>p.ucenikId===u.id && p.status!=='P').length;
+  const day = new Date().getDay();
+  const raspToday = DB.casovi.filter(cs=>cs.razredId===u.razredId && cs.dan===day).sort((a,b)=>a.vrijeme.localeCompare(b.vrijeme));
+  const domaci = DB.domaci.filter(d=>d.razredId===u.razredId && new Date(d.rok)>=new Date()).sort((a,b)=>a.rok.localeCompare(b.rok));
+  const ispiti = DB.ispitivanja.filter(i=>i.razredId===u.razredId && new Date(i.datum)>=new Date(todayISO())).sort((a,b)=>a.datum.localeCompare(b.datum));
+  const danasRedar = DB.redari.find(r=>r.razredId===u.razredId && r.ucenikIds.includes(u.id) && new Date(todayISO())>=new Date(r.datumOd) && new Date(todayISO())<=new Date(r.datumDo));
+  c.innerHTML = `
+    <div class="mb-6">
+      <h2 class="text-3xl font-bold text-gray-800">Pozdrav, ${currentUser.name}! 👋</h2>
+      <p class="text-gray-500 mt-1">Razred: <b>${getRazredName(u.razredId)}</b> • ${DB.skola.naziv} ${danasRedar?'<span class="redar-badge ml-2">🛡 DANAS STE REDAR</span>':''}</p>
+    </div>
+    ${danasRedar ? `<div class="bg-gradient-to-r from-yellow-100 to-orange-100 border-l-4 border-yellow-500 rounded-xl p-4 mb-4">
+      <div class="flex items-center gap-3">
+        <span class="text-3xl">🛡</span>
+        <div>
+          <div class="font-bold text-yellow-900">Vi ste danas redar!</div>
+          <div class="text-sm text-yellow-800">Period: ${fmtDate(danasRedar.datumOd)} - ${fmtDate(danasRedar.datumDo)}. Pomažite nastavniku, brišite tablu i čuvajte red u razredu.</div>
+        </div>
+      </div>
+    </div>`:''}
+    ${ispiti.length && Math.ceil((new Date(ispiti[0].datum)-new Date(todayISO()))/(1000*60*60*24))<=3 ? `<div class="bg-red-50 border-l-4 border-red-500 rounded-xl p-4 mb-4">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <span class="text-3xl">⚠</span>
+          <div>
+            <div class="font-bold text-red-900">Uskoro ispitivanje!</div>
+            <div class="text-sm text-red-800">${ispiti[0].tip.toUpperCase()} - ${ispiti[0].predmet}: ${ispiti[0].naslov} • ${fmtDate(ispiti[0].datum)} u ${ispiti[0].vrijeme}</div>
+          </div>
+        </div>
+        <button onclick="navigate('mojiispiti')" class="btn-danger px-4 py-2 rounded-lg font-semibold">Vidi sve →</button>
+      </div>
+    </div>`:''}
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div onclick="navigate('mojeocjene')" class="stat-card bg-gradient-to-br from-blue-500 to-blue-700 text-white rounded-xl p-5">
+        <div class="text-3xl font-bold">${avgOcjena(aktivne)}</div>
+        <div class="text-sm opacity-90 mt-1">Prosjek</div>
+      </div>
+      <div onclick="navigate('mojeocjene')" class="stat-card bg-gradient-to-br from-green-500 to-green-700 text-white rounded-xl p-5">
+        <div class="text-3xl font-bold">${aktivne.length}</div>
+        <div class="text-sm opacity-90 mt-1">Aktivnih ocjena</div>
+      </div>
+      <div onclick="navigate('mojeprisustvo')" class="stat-card bg-gradient-to-br from-orange-500 to-red-600 text-white rounded-xl p-5">
+        <div class="text-3xl font-bold">${izost}</div>
+        <div class="text-sm opacity-90 mt-1">Izostanaka</div>
+      </div>
+      <div onclick="navigate('mojiispiti')" class="stat-card bg-gradient-to-br from-red-500 to-pink-600 text-white rounded-xl p-5">
+        <div class="text-3xl font-bold">${ispiti.length}</div>
+        <div class="text-sm opacity-90 mt-1">Nadolazećih ispita</div>
+      </div>
+    </div>
+    <div class="grid md:grid-cols-2 gap-6">
+      <div class="bg-white border rounded-xl p-6">
+        <h3 class="font-semibold text-lg mb-4">📅 Današnji raspored</h3>
+        ${raspToday.length ? raspToday.map(cs=>`
+          <div class="flex items-center gap-3 py-2 border-b last:border-0">
+            <div class="font-bold text-blue-700 w-14">${cs.vrijeme}</div>
+            <div class="flex-1"><div class="font-medium">${cs.predmet}</div><div class="text-xs text-gray-500">${getNastavnikName(cs.nastavnikId)} ${cs.ucionica?'• uč. '+cs.ucionica:''}</div></div>
+          </div>`).join('') : '<p class="text-gray-400 text-sm">Slobodan dan! 🎉</p>'}
+      </div>
+      <div class="bg-white border rounded-xl p-6">
+        <h3 class="font-semibold text-lg mb-4">📚 Aktualne zadaće</h3>
+        ${domaci.length ? domaci.slice(0,5).map(d=>{
+          const daysLeft = Math.ceil((new Date(d.rok)-new Date())/(1000*60*60*24));
+          return `<div class="py-2 border-b last:border-0">
+            <div class="flex justify-between items-start">
+              <div><div class="font-medium text-sm">${d.naslov}</div><div class="text-xs text-gray-500">${d.predmet}</div></div>
+              <span class="badge ${daysLeft<=1?'bg-red-100 text-red-700':daysLeft<=3?'bg-yellow-100 text-yellow-700':'bg-green-100 text-green-700'}">${daysLeft===0?'danas':daysLeft+' d'}</span>
+            </div>
+          </div>`;
+        }).join('') : '<p class="text-gray-400 text-sm">Nema aktivnih zadaća</p>'}
+      </div>
+    </div>`;
+}
+
+// =========================== KORISNICI ===========================
+RENDERERS.korisnici = function(c) {
+  const search = (document.getElementById('searchU')?.value || '').toLowerCase();
+  const filter = document.getElementById('filterU')?.value || 'all';
+  let list = DB.users;
+  if (filter !== 'all') list = list.filter(u=>u.role===filter);
+  if (search) list = list.filter(u=>u.name.toLowerCase().includes(search) || u.username.toLowerCase().includes(search));
+  c.innerHTML = `
+    <div class="flex justify-between items-center mb-6">
+      <h2 class="text-3xl font-bold">Korisnici</h2>
+      <button onclick="openUserModal()" class="btn-primary px-4 py-2 rounded-lg font-semibold flex items-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        Novi korisnik
+      </button>
+    </div>
+    <div class="bg-yellow-50 border-l-4 border-yellow-400 p-3 mb-4 text-sm rounded">⚠ Administrator vidi lozinke svih korisnika.</div>
+    <div class="flex gap-3 mb-4">
+      <input id="searchU" oninput="navigate('korisnici')" value="${search}" placeholder="🔍 Pretraži po imenu..." class="flex-1 px-4 py-2 border rounded-lg">
+      <select id="filterU" onchange="navigate('korisnici')" class="px-4 py-2 border rounded-lg">
+        <option value="all" ${filter==='all'?'selected':''}>Sve uloge</option>
+        <option value="admin" ${filter==='admin'?'selected':''}>Administratori</option>
+        <option value="nastavnik" ${filter==='nastavnik'?'selected':''}>Nastavnici</option>
+        <option value="ucenik" ${filter==='ucenik'?'selected':''}>Učenici</option>
+      </select>
+    </div>
+    <div class="bg-white border rounded-xl overflow-hidden">
+      <table>
+        <thead><tr><th>ID</th><th>Username</th><th>Lozinka</th><th>Ime i prezime</th><th>Email</th><th>Uloga</th><th>Detalji</th><th>Akcije</th></tr></thead>
+        <tbody>
+          ${list.map(u=>`<tr>
+            <td>${u.id}</td>
+            <td><b>${u.username}</b></td>
+            <td><code class="bg-gray-100 px-2 py-1 rounded text-xs">${u.password}</code></td>
+            <td style="text-align:left">${u.name}</td>
+            <td style="text-align:left">${u.email||''}</td>
+            <td><span class="badge ${u.role==='admin'?'bg-red-100 text-red-700':u.role==='nastavnik'?'bg-blue-100 text-blue-700':'bg-green-100 text-green-700'}">${u.role}</span></td>
+            <td class="text-xs" style="text-align:left">${u.role==='nastavnik'?(u.predmeti||[]).join(', '):u.role==='ucenik'?getRazredName(DB.ucenici.find(x=>x.id===u.ucenikId)?.razredId):''}</td>
+            <td>
+              <button onclick="openUserModal(${u.id})" class="text-blue-600 hover:underline mr-2 text-sm">Uredi</button>
+              ${u.username!=='admin'?`<button onclick="deleteUser(${u.id})" class="text-red-600 hover:underline text-sm">Obriši</button>`:''}
+            </td>
+          </tr>`).join('') || '<tr><td colspan="8" class="empty-state">Nema korisnika</td></tr>'}
+        </tbody>
+      </table>
+    </div>`;
+};
+function openUserModal(id) {
+  const u = id ? DB.users.find(x=>x.id===id) : { username:'',password:'',role:'nastavnik',name:'',email:'',predmeti:[],ucenikId:null };
+  showModal(`
+    <h3 class="text-xl font-bold mb-4">${id?'Uredi':'Novi'} korisnik</h3>
+    <form id="userForm" class="space-y-3">
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="text-sm font-medium block mb-1">Username *</label><input name="username" value="${u.username}" required class="w-full px-3 py-2 border rounded-lg"></div>
+        <div><label class="text-sm font-medium block mb-1">Lozinka *</label><input name="password" value="${u.password}" required class="w-full px-3 py-2 border rounded-lg"></div>
+      </div>
+      <div><label class="text-sm font-medium block mb-1">Ime i prezime *</label><input name="name" value="${u.name}" required class="w-full px-3 py-2 border rounded-lg"></div>
+      <div><label class="text-sm font-medium block mb-1">Email</label><input name="email" type="email" value="${u.email||''}" class="w-full px-3 py-2 border rounded-lg"></div>
+      <div><label class="text-sm font-medium block mb-1">Uloga *</label>
+        <select name="role" id="roleSelect" class="w-full px-3 py-2 border rounded-lg" onchange="toggleRoleFields()">
+          <option value="admin" ${u.role==='admin'?'selected':''}>Administrator</option>
+          <option value="nastavnik" ${u.role==='nastavnik'?'selected':''}>Nastavnik</option>
+          <option value="ucenik" ${u.role==='ucenik'?'selected':''}>Učenik</option>
+        </select>
+      </div>
+      <div id="predmetiField" class="${u.role==='nastavnik'?'':'hidden'}">
+        <label class="text-sm font-medium block mb-2">Zaduženja (predmet + razredi)</label>
+        <div id="zaduzenjaList" class="space-y-2 mb-2">
+          ${(u.zaduzenja||[]).map((z,i)=>`<div class="flex gap-2 items-center bg-gray-50 p-2 rounded border" data-z-idx="${i}">
+            <select class="z-predmet flex-1 px-2 py-1 border rounded text-sm">${DB.predmeti.map(p=>`<option ${p===z.predmet?'selected':''}>${p}</option>`).join('')}</select>
+            <div class="flex gap-1 flex-wrap">${DB.razredi.map(r=>`<label class="text-xs bg-white border px-2 py-0.5 rounded cursor-pointer"><input type="checkbox" class="z-razred" value="${r.id}" ${z.razrediIds?.includes(r.id)?'checked':''}> ${r.naziv}</label>`).join('')}</div>
+            <button type="button" onclick="this.parentElement.remove()" class="text-red-500 hover:bg-red-50 w-7 h-7 rounded">×</button>
+          </div>`).join('')}
+        </div>
+        <button type="button" onclick="addZaduzenje()" class="text-blue-600 hover:underline text-sm">+ Dodaj zaduženje</button>
+        <p class="text-xs text-gray-500 mt-1">Npr: Matematika → VI-1, VII-2</p>
+      </div>
+      <div id="razrednikField" class="${u.role==='nastavnik'?'':'hidden'}">
+        <label class="text-sm font-medium block mb-1">Razrednik razreda</label>
+        <select name="razrednikRazredId" class="w-full px-3 py-2 border rounded-lg">
+          <option value="">-- nije razrednik --</option>
+          ${DB.razredi.map(r=>`<option value="${r.id}" ${r.id===u.razrednikRazredId?'selected':''}>${r.naziv}</option>`).join('')}
+        </select>
+      </div>
+      <div id="ucenikField" class="${u.role==='ucenik'?'':'hidden'}">
+        <label class="text-sm font-medium block mb-1">Poveži sa učenikom</label>
+        <select name="ucenikId" class="w-full px-3 py-2 border rounded-lg">
+          <option value="">-- odaberi --</option>
+          ${DB.ucenici.map(uc=>`<option value="${uc.id}" ${uc.id===u.ucenikId?'selected':''}>${uc.prezime} ${uc.ime} (${getRazredName(uc.razredId)})</option>`).join('')}
+        </select>
+      </div>
+      <div class="flex justify-end gap-2 pt-4 border-t">
+        <button type="button" onclick="closeModal()" class="btn-secondary px-4 py-2 rounded-lg">Otkaži</button>
+        <button type="submit" class="btn-primary px-4 py-2 rounded-lg">Sačuvaj</button>
+      </div>
+    </form>`);
+  document.getElementById('userForm').onsubmit = e => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const data = { username: fd.get('username'), password: fd.get('password'), name: fd.get('name'), email: fd.get('email'), role: fd.get('role') };
+    if (data.role==='nastavnik') {
+      data.zaduzenja = readZaduzenja();
+      data.predmeti = [...new Set(data.zaduzenja.map(z=>z.predmet))];
+      const rrid = +fd.get('razrednikRazredId');
+      data.razrednikRazredId = rrid || null;
+    }
+    if (data.role==='ucenik') data.ucenikId = +fd.get('ucenikId') || null;
+    if (id) Object.assign(u, data);
+    else DB.users.push({ id: Date.now(), ...data });
+    saveData(); closeModal(); navigate('korisnici');
+    showNotification(id?'Korisnik ažuriran!':'Korisnik dodan!');
+  };
+}
+function toggleRoleFields() {
+  const r = document.getElementById('roleSelect').value;
+  document.getElementById('predmetiField').classList.toggle('hidden', r!=='nastavnik');
+  document.getElementById('razrednikField').classList.toggle('hidden', r!=='nastavnik');
+  document.getElementById('ucenikField').classList.toggle('hidden', r!=='ucenik');
+}
+function addZaduzenje() {
+  const list = document.getElementById('zaduzenjaList');
+  const div = document.createElement('div');
+  div.className = 'flex gap-2 items-center bg-gray-50 p-2 rounded border';
+  div.innerHTML = `
+    <select class="z-predmet flex-1 px-2 py-1 border rounded text-sm">${DB.predmeti.map(p=>`<option>${p}</option>`).join('')}</select>
+    <div class="flex gap-1 flex-wrap">${DB.razredi.map(r=>`<label class="text-xs bg-white border px-2 py-0.5 rounded cursor-pointer"><input type="checkbox" class="z-razred" value="${r.id}"> ${r.naziv}</label>`).join('')}</div>
+    <button type="button" onclick="this.parentElement.remove()" class="text-red-500 hover:bg-red-50 w-7 h-7 rounded">×</button>`;
+  list.appendChild(div);
+}
+function readZaduzenja() {
+  return [...document.querySelectorAll('#zaduzenjaList > div')].map(div=>({
+    predmet: div.querySelector('.z-predmet').value,
+    razrediIds: [...div.querySelectorAll('.z-razred:checked')].map(c=>+c.value)
+  })).filter(z=>z.razrediIds.length);
+}
+function deleteUser(id) {
+  if (!confirm('Obrisati korisnika?')) return;
+  DB.users = DB.users.filter(u=>u.id!==id); saveData(); navigate('korisnici'); showNotification('Korisnik obrisan');
+}
+
+// =========================== RAZREDI ===========================
+RENDERERS.razredi = function(c) {
+  c.innerHTML = `
+    <div class="flex justify-between items-center mb-6">
+      <h2 class="text-3xl font-bold">Razredi</h2>
+      <button onclick="openRazredModal()" class="btn-primary px-4 py-2 rounded-lg font-semibold">+ Novi razred</button>
+    </div>
+    <div class="grid md:grid-cols-3 gap-4">
+      ${DB.razredi.map(r=>{
+        const broj = DB.ucenici.filter(u=>u.razredId===r.id).length;
+        const oc = DB.ocjene.filter(o=>{ const u=DB.ucenici.find(x=>x.id===o.ucenikId); return u?.razredId===r.id && !o.zamjenjeno && !o.zakljucna; });
+        return `<div class="bg-white border rounded-xl p-5 hover:shadow-md transition">
+          <div class="flex justify-between items-start mb-3">
+            <div><h3 class="text-2xl font-bold text-blue-700">${r.naziv}</h3><p class="text-sm text-gray-500">Razrednik: ${r.razrednik}</p></div>
+            <div class="text-3xl">🎓</div>
+          </div>
+          <div class="grid grid-cols-2 gap-2 mb-3">
+            <div class="bg-blue-50 rounded p-2 text-center"><div class="text-2xl font-bold text-blue-700">${broj}</div><div class="text-xs text-gray-600">učenika</div></div>
+            <div class="bg-green-50 rounded p-2 text-center"><div class="text-2xl font-bold text-green-700">${avgOcjena(oc)}</div><div class="text-xs text-gray-600">prosjek</div></div>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="openRazredModal(${r.id})" class="flex-1 btn-secondary py-1.5 rounded text-sm">Uredi</button>
+            <button onclick="deleteRazred(${r.id})" class="flex-1 text-red-600 hover:bg-red-50 py-1.5 rounded text-sm border border-red-200">Obriši</button>
+          </div>
+        </div>`;
+      }).join('') || '<div class="empty-state col-span-3">Nema razreda</div>'}
+    </div>`;
+};
+function openRazredModal(id) {
+  const r = id ? DB.razredi.find(x=>x.id===id) : { naziv:'',razrednik:'' };
+  showModal(`<h3 class="text-xl font-bold mb-4">${id?'Uredi':'Novi'} razred</h3>
+    <form id="rf" class="space-y-3">
+      <div><label class="text-sm font-medium block mb-1">Naziv *</label><input name="naziv" value="${r.naziv}" required class="w-full px-3 py-2 border rounded-lg" placeholder="npr. VI-1"></div>
+      <div><label class="text-sm font-medium block mb-1">Razrednik</label>
+        <select name="razrednik" class="w-full px-3 py-2 border rounded-lg">
+          ${DB.users.filter(u=>u.role==='nastavnik').map(n=>`<option ${n.name===r.razrednik?'selected':''}>${n.name}</option>`).join('')}
+        </select>
+      </div>
+      <div class="flex justify-end gap-2 pt-4 border-t">
+        <button type="button" onclick="closeModal()" class="btn-secondary px-4 py-2 rounded-lg">Otkaži</button>
+        <button type="submit" class="btn-primary px-4 py-2 rounded-lg">Sačuvaj</button>
+      </div>
+    </form>`);
+  document.getElementById('rf').onsubmit = e => {
+    e.preventDefault();
+    const d = Object.fromEntries(new FormData(e.target));
+    if (id) Object.assign(r, d); else DB.razredi.push({ id: Date.now(), ...d });
+    saveData(); closeModal(); navigate('razredi'); showNotification('Razred sačuvan!');
+  };
+}
+function deleteRazred(id) {
+  if (!confirm('Obrisati razred?')) return;
+  DB.razredi = DB.razredi.filter(r=>r.id!==id); saveData(); navigate('razredi');
+}
+
+// =========================== UČENICI ===========================
+RENDERERS.ucenici = function(c) {
+  const filterRazred = +(document.getElementById('ucFilter')?.value || 0);
+  const search = (document.getElementById('ucSearch')?.value||'').toLowerCase();
+  let list = DB.ucenici;
+  if (filterRazred) list = list.filter(u=>u.razredId===filterRazred);
+  if (search) list = list.filter(u=>(u.ime+' '+u.prezime).toLowerCase().includes(search));
+  c.innerHTML = `
+    <div class="flex justify-between items-center mb-6">
+      <h2 class="text-3xl font-bold">Učenici</h2>
+      ${currentUser.role==='admin'?`<button onclick="openUcenikModal()" class="btn-primary px-4 py-2 rounded-lg font-semibold">+ Novi učenik</button>`:''}
+    </div>
+    <div class="flex gap-3 mb-4">
+      <input id="ucSearch" oninput="navigate('ucenici')" value="${search}" placeholder="🔍 Pretraži..." class="flex-1 px-4 py-2 border rounded-lg">
+      <select id="ucFilter" onchange="navigate('ucenici')" class="px-4 py-2 border rounded-lg">
+        <option value="0">Svi razredi</option>
+        ${DB.razredi.map(r=>`<option value="${r.id}" ${r.id===filterRazred?'selected':''}>${r.naziv}</option>`).join('')}
+      </select>
+    </div>
+    <div class="bg-white border rounded-xl overflow-hidden">
+      <table>
+        <thead><tr><th>Br.</th><th>Prezime i ime</th><th>Razred</th><th>Prosjek</th><th>Izostanaka</th>${currentUser.role==='admin'?'<th>Akcije</th>':''}</tr></thead>
+        <tbody>${list.map((u,i)=>{
+          const oc = DB.ocjene.filter(o=>o.ucenikId===u.id);
+          const izo = DB.prisustva.filter(p=>p.ucenikId===u.id && p.status!=='P').length;
+          const avg = parseFloat(avgOcjena(oc))||0;
+          return `<tr>
+            <td>${i+1}</td>
+            <td style="text-align:left;padding-left:16px"><b>${u.prezime} ${u.ime}</b></td>
+            <td>${getRazredName(u.razredId)}</td>
+            <td><span class="font-bold ${avg>=4?'text-green-700':avg>=3?'text-blue-700':avg>=2?'text-yellow-700':'text-red-700'}">${avgOcjena(oc)}</span></td>
+            <td>${izo>0?`<span class="badge bg-red-100 text-red-700">${izo}</span>`:'<span class="text-gray-400">0</span>'}</td>
+            ${currentUser.role==='admin'?`<td>
+              <button onclick="openUcenikModal(${u.id})" class="text-blue-600 hover:underline mr-2 text-sm">Uredi</button>
+              <button onclick="deleteUcenik(${u.id})" class="text-red-600 hover:underline text-sm">Obriši</button>
+            </td>`:''}
+          </tr>`;
+        }).join('') || `<tr><td colspan="${currentUser.role==='admin'?6:5}" class="empty-state">Nema učenika</td></tr>`}</tbody>
+      </table>
+    </div>`;
+};
+function openUcenikModal(id) {
+  const u = id ? DB.ucenici.find(x=>x.id===id) : { ime:'',prezime:'',razredId: DB.razredi[0]?.id, jmbg:'', datumRodjenja:'' };
+  showModal(`<h3 class="text-xl font-bold mb-4">${id?'Uredi':'Novi'} učenik</h3>
+    <form id="uf" class="space-y-3">
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="text-sm font-medium block mb-1">Ime *</label><input name="ime" value="${u.ime}" required class="w-full px-3 py-2 border rounded-lg"></div>
+        <div><label class="text-sm font-medium block mb-1">Prezime *</label><input name="prezime" value="${u.prezime}" required class="w-full px-3 py-2 border rounded-lg"></div>
+      </div>
+      <div><label class="text-sm font-medium block mb-1">Razred *</label>
+        <select name="razredId" class="w-full px-3 py-2 border rounded-lg">${DB.razredi.map(r=>`<option value="${r.id}" ${r.id===u.razredId?'selected':''}>${r.naziv}</option>`).join('')}</select>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="text-sm font-medium block mb-1">JMBG</label><input name="jmbg" value="${u.jmbg||''}" class="w-full px-3 py-2 border rounded-lg"></div>
+        <div><label class="text-sm font-medium block mb-1">Datum rođenja</label><input name="datumRodjenja" type="date" value="${u.datumRodjenja||''}" class="w-full px-3 py-2 border rounded-lg"></div>
+      </div>
+      <div class="flex justify-end gap-2 pt-4 border-t">
+        <button type="button" onclick="closeModal()" class="btn-secondary px-4 py-2 rounded-lg">Otkaži</button>
+        <button type="submit" class="btn-primary px-4 py-2 rounded-lg">Sačuvaj</button>
+      </div>
+    </form>`);
+  document.getElementById('uf').onsubmit = e => {
+    e.preventDefault();
+    const d = Object.fromEntries(new FormData(e.target));
+    d.razredId = +d.razredId;
+    if (id) Object.assign(u, d); else DB.ucenici.push({ id: Date.now(), ...d });
+    saveData(); closeModal(); navigate('ucenici'); showNotification('Učenik sačuvan!');
+  };
+}
+function deleteUcenik(id) {
+  if (!confirm('Obrisati učenika?')) return;
+  DB.ucenici = DB.ucenici.filter(u=>u.id!==id); saveData(); navigate('ucenici');
+}
+
+// =========================== PREDMETI ===========================
+RENDERERS.predmeti = function(c) {
+  c.innerHTML = `
+    <div class="flex justify-between items-center mb-6">
+      <h2 class="text-3xl font-bold">Predmeti</h2>
+      <button onclick="addPredmet()" class="btn-primary px-4 py-2 rounded-lg font-semibold">+ Novi predmet</button>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+      ${DB.predmeti.map((p,i)=>{
+        const broj = DB.casovi.filter(c=>c.predmet===p).length;
+        return `<div class="bg-white border rounded-xl p-4 hover:shadow-md transition">
+          <div class="flex justify-between items-start mb-2">
+            <div class="font-semibold">${p}</div>
+            <button onclick="removePredmet(${i})" class="text-red-500 hover:bg-red-50 w-6 h-6 rounded text-lg leading-none">×</button>
+          </div>
+          <div class="text-xs text-gray-500">${broj} časova sedmično</div>
+        </div>`;
+      }).join('')}
+    </div>`;
+};
+function addPredmet() {
+  const n = prompt('Naziv novog predmeta:');
+  if (n && n.trim()) { DB.predmeti.push(n.trim()); saveData(); navigate('predmeti'); showNotification('Predmet dodan!'); }
+}
+function removePredmet(i) {
+  if (confirm('Obrisati '+DB.predmeti[i]+'?')) { DB.predmeti.splice(i,1); saveData(); navigate('predmeti'); }
+}
+
+// =========================== RASPORED ===========================
+RENDERERS.raspored = function(c) {
+  const dani = [1,2,3,4,5];
+  const vremena = ['08:00','08:50','09:45','10:40','11:35','12:30','13:15'];
+  const razredId = +(document.getElementById('rspRazred')?.value || DB.razredi[0]?.id || 0);
+  const today = new Date().getDay();
+  const nowMin = new Date().getHours()*60 + new Date().getMinutes();
+  c.innerHTML = `
+    <div class="flex justify-between items-center mb-6">
+      <h2 class="text-3xl font-bold">Raspored časova</h2>
+      ${currentUser.role==='admin'?`<button onclick="openCasModal()" class="btn-primary px-4 py-2 rounded-lg font-semibold">+ Dodaj čas</button>`:''}
+    </div>
+    <div class="mb-4 flex items-center gap-3 bg-white p-3 rounded-lg border">
+      <label class="font-medium">Razred:</label>
+      <select id="rspRazred" onchange="navigate('raspored')" class="px-3 py-2 border rounded-lg">
+        ${DB.razredi.map(r=>`<option value="${r.id}" ${r.id===razredId?'selected':''}>${r.naziv}</option>`).join('')}
+      </select>
+    </div>
+    <div class="bg-white border rounded-xl overflow-hidden">
+      <table>
+        <thead><tr><th style="width:90px">Vrijeme</th>${dani.map(d=>`<th class="${d===today?'bg-blue-50 text-blue-700':''}">${getDanName(d)}</th>`).join('')}</tr></thead>
+        <tbody>${vremena.map(v=>`<tr>
+          <td class="font-bold bg-gray-50 text-gray-700">${v}</td>
+          ${dani.map(d=>{
+            const cs = DB.casovi.find(x=>x.razredId===razredId&&x.dan===d&&x.vrijeme===v);
+            if (!cs) return '<td class="schedule-cell"><span class="text-gray-300">-</span></td>';
+            const [h,m] = cs.vrijeme.split(':').map(Number);
+            const start = h*60+m;
+            const isNow = d===today && nowMin>=start && nowMin<=start+(cs.trajanje||45);
+            const isSoon = d===today && start>nowMin && start-nowMin<30;
+            return `<td class="schedule-cell ${isNow?'schedule-current':isSoon?'schedule-soon':''}">
+              <div class="text-sm">
+                <div class="font-bold text-blue-700">${cs.predmet}</div>
+                <div class="text-xs text-gray-600 mt-1">${getNastavnikName(cs.nastavnikId)}</div>
+                ${cs.ucionica?`<div class="text-xs text-gray-500">📍 ${cs.ucionica}</div>`:''}
+                ${currentUser.role==='admin'?`<button onclick="deleteCas(${cs.id})" class="text-red-500 text-xs hover:underline mt-1">obriši</button>`:''}
+              </div>
+            </td>`;
+          }).join('')}
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>
+    ${currentUser.role==='admin'?`<p class="text-xs text-gray-500 mt-3">💡 Plava ćelija = trenutno aktivan čas. Žuta = počinje uskoro.</p>`:''}`;
+};
+function openCasModal() {
+  showModal(`<h3 class="text-xl font-bold mb-4">Novi čas</h3>
+    <form id="cf" class="space-y-3">
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="text-sm font-medium block mb-1">Razred *</label>
+          <select name="razredId" class="w-full px-3 py-2 border rounded-lg">${DB.razredi.map(r=>`<option value="${r.id}">${r.naziv}</option>`).join('')}</select>
+        </div>
+        <div><label class="text-sm font-medium block mb-1">Predmet *</label>
+          <select name="predmet" id="cfPredmet" onchange="filterCasNastavnik()" class="w-full px-3 py-2 border rounded-lg">${DB.predmeti.map(p=>`<option>${p}</option>`).join('')}</select>
+        </div>
+      </div>
+      <div><label class="text-sm font-medium block mb-1">Nastavnik *</label>
+        <select name="nastavnikId" id="cfNastavnik" class="w-full px-3 py-2 border rounded-lg">${DB.users.filter(u=>u.role==='nastavnik').map(n=>`<option value="${n.id}">${n.name}</option>`).join('')}</select>
+      </div>
+      <div class="grid grid-cols-3 gap-3">
+        <div><label class="text-sm font-medium block mb-1">Dan *</label>
+          <select name="dan" class="w-full px-3 py-2 border rounded-lg">
+            <option value="1">Ponedjeljak</option><option value="2">Utorak</option><option value="3">Srijeda</option><option value="4">Četvrtak</option><option value="5">Petak</option>
+          </select>
+        </div>
+        <div><label class="text-sm font-medium block mb-1">Vrijeme *</label><input name="vrijeme" type="time" value="08:00" required class="w-full px-3 py-2 border rounded-lg"></div>
+        <div><label class="text-sm font-medium block mb-1">Trajanje (min)</label><input name="trajanje" type="number" value="45" required class="w-full px-3 py-2 border rounded-lg"></div>
+      </div>
+      <div><label class="text-sm font-medium block mb-1">Učionica</label><input name="ucionica" placeholder="npr. 12" class="w-full px-3 py-2 border rounded-lg"></div>
+      <div class="flex justify-end gap-2 pt-4 border-t">
+        <button type="button" onclick="closeModal()" class="btn-secondary px-4 py-2 rounded-lg">Otkaži</button>
+        <button type="submit" class="btn-primary px-4 py-2 rounded-lg">Sačuvaj</button>
+      </div>
+    </form>`);
+  filterCasNastavnik();
+  document.getElementById('cf').onsubmit = e => {
+    e.preventDefault();
+    const d = Object.fromEntries(new FormData(e.target));
+    DB.casovi.push({ id: Date.now(), razredId:+d.razredId, predmet:d.predmet, nastavnikId:+d.nastavnikId, dan:+d.dan, vrijeme:d.vrijeme, trajanje:+d.trajanje, ucionica:d.ucionica });
+    saveData(); closeModal(); navigate('raspored'); showNotification('Čas dodan!');
+  };
+}
+function filterCasNastavnik() {
+  const p = document.getElementById('cfPredmet').value;
+  const sel = document.getElementById('cfNastavnik');
+  const odgovarajuci = DB.users.filter(u=>u.role==='nastavnik' && (u.predmeti||[]).includes(p));
+  if (odgovarajuci.length) sel.innerHTML = odgovarajuci.map(n=>`<option value="${n.id}">${n.name}</option>`).join('');
+  else sel.innerHTML = DB.users.filter(u=>u.role==='nastavnik').map(n=>`<option value="${n.id}">${n.name}</option>`).join('');
+}
+function deleteCas(id) {
+  if (!confirm('Obrisati čas?')) return;
+  DB.casovi = DB.casovi.filter(c=>c.id!==id); saveData(); navigate('raspored');
+}
+
+// =========================== MOJI ČASOVI ===========================
+RENDERERS.mojicasovi = function(c) {
+  const trenutni = getTrenutniCas(currentUser.id);
+  const today = new Date().getDay();
+  c.innerHTML = `<h2 class="text-3xl font-bold mb-6">Moji časovi</h2>
+    ${trenutni ? `<div class="bg-gradient-to-r from-blue-600 to-blue-800 text-white rounded-xl p-5 mb-6 pulse-now">
+      <p class="text-sm font-semibold uppercase tracking-wider">▶ Trenutni čas</p>
+      <h3 class="text-2xl font-bold mt-1">${trenutni.predmet} - ${getRazredName(trenutni.razredId)}</h3>
+      <button onclick="navigate('dnevnik',{razredId:${trenutni.razredId},predmet:'${trenutni.predmet}'})" class="bg-white text-blue-700 px-4 py-2 rounded-lg mt-3 font-semibold">Otvori dnevnik</button>
+    </div>` : ''}
+    ${[1,2,3,4,5].map(d=>{
+      const casovi = DB.casovi.filter(cas=>cas.nastavnikId===currentUser.id && cas.dan===d).sort((a,b)=>a.vrijeme.localeCompare(b.vrijeme));
+      if (!casovi.length) return '';
+      return `<div class="mb-5">
+        <h3 class="font-bold text-lg mb-2 ${d===today?'text-blue-700':'text-gray-700'}">${getDanName(d)} ${d===today?'<span class="badge bg-blue-100 text-blue-700 ml-2">DANAS</span>':''}</h3>
+        <div class="bg-white border rounded-xl overflow-hidden">
+          ${casovi.map(cas=>`
+            <div class="flex justify-between items-center p-3 border-b last:border-0 hover:bg-gray-50">
+              <div class="flex items-center gap-4">
+                <div class="text-lg font-bold text-blue-700 w-16">${cas.vrijeme}</div>
+                <div><div class="font-semibold">${cas.predmet}</div><div class="text-sm text-gray-500">${getRazredName(cas.razredId)} ${cas.ucionica?'• učionica '+cas.ucionica:''}</div></div>
+              </div>
+              <button onclick="navigate('dnevnik',{razredId:${cas.razredId},predmet:'${cas.predmet}'})" class="btn-secondary px-3 py-1.5 rounded text-sm">Dnevnik →</button>
+            </div>`).join('')}
+        </div>
+      </div>`;
+    }).join('') || '<div class="empty-state">Nemate dodijeljene časove</div>'}`;
+};
+
+// =========================== DNEVNIK ===========================
+RENDERERS.dnevnik = function(c, state={}) {
+  const trenutni = getTrenutniCas(currentUser.id);
+  const moji = DB.casovi.filter(cs=>cs.nastavnikId===currentUser.id);
+  const dostupniRazredi = [...new Set(moji.map(m=>m.razredId))];
+  const razredId = +(document.getElementById('dnRazred')?.value) || state.razredId || trenutni?.razredId || dostupniRazredi[0] || DB.razredi[0]?.id;
+  const dostupniPredmeti = currentUser.predmeti || DB.predmeti;
+  const predmet = document.getElementById('dnPredmet')?.value || state.predmet || trenutni?.predmet || dostupniPredmeti[0];
+  const datum = document.getElementById('dnDatum')?.value || todayISO();
+  const sem = getCurrentSemester();
+  const locked = isSemesterLocked(razredId, predmet, sem);
+  c.innerHTML = `
+    <h2 class="text-3xl font-bold mb-4">Dnevnik</h2>
+    <div class="flex gap-6 border-b mb-6 overflow-x-auto">
+      ${[['dnevnik','Dnevnik'],['planprogram','Plan i program'],['materijali','Nastavni materijal'],['biljeske','Bilješke']].map(([k,n])=>`
+        <button onclick="navigate('${k}')" class="pb-3 px-1 whitespace-nowrap ${currentView===k?'tab-active':'tab-inactive'}">${n}</button>`).join('')}
+    </div>
+    <div class="flex flex-wrap gap-4 mb-6 bg-white p-4 rounded-xl border">
+      <div class="flex items-center gap-3">
+        <label class="font-semibold text-gray-700">Razred</label>
+        <select id="dnRazred" onchange="navigate('dnevnik')" class="px-3 py-2 border rounded-lg min-w-[120px]">
+          ${DB.razredi.map(r=>`<option value="${r.id}" ${r.id===razredId?'selected':''}>${r.naziv}</option>`).join('')}
+        </select>
+      </div>
+      <div class="flex items-center gap-3">
+        <label class="font-semibold text-gray-700">Predmet</label>
+        <select id="dnPredmet" onchange="navigate('dnevnik')" class="px-3 py-2 border rounded-lg min-w-[180px]">
+          ${dostupniPredmeti.map(p=>`<option ${p===predmet?'selected':''}>${p}</option>`).join('')}
+        </select>
+      </div>
+      <div class="flex items-center gap-3 ml-auto">
+        <label class="font-semibold text-gray-700">Datum</label>
+        <input type="date" id="dnDatum" value="${datum}" onchange="navigate('dnevnik')" class="px-3 py-2 border rounded-lg">
+      </div>
+    </div>
+    ${locked ? '<div class="bg-green-50 border border-green-300 text-green-800 p-3 rounded-lg mb-4">🔒 Semestar je zaključan. Ocjenjivanje nije moguće.</div>' : ''}
+    ${renderLekcijaPanel(razredId, predmet, datum)}
+    <div class="flex justify-between items-center mt-6 mb-3">
+      <h3 class="text-lg font-bold">Učenici i ocjenjivanje</h3>
+      <span class="text-sm text-gray-500">${datum.split('-').reverse().join('.')}.</span>
+    </div>
+    <div class="bg-white border rounded-xl overflow-hidden">
+      <table>
+        <thead><tr>
+          <th>Br.</th>
+          <th style="text-align:left">Prezime i ime</th>
+          <th>Prisustvo</th>
+          <th>Aktivnost</th>
+          <th>Pismene</th>
+          <th>Usmene</th>
+          <th>Zaključna</th>
+        </tr></thead>
+        <tbody>
+          ${DB.ucenici.filter(u=>u.razredId===razredId).map((u,i)=>{
+            const pris = DB.prisustva.find(p=>p.ucenikId===u.id&&p.predmet===predmet&&p.datum===datum);
+            return `<tr>
+              <td>${i+1}</td>
+              <td style="text-align:left;padding-left:16px"><b>${u.prezime} ${u.ime}</b></td>
+              <td>
+                <select onchange="setPrisustvo(${u.id},'${predmet}','${datum}',this.value)" class="px-2 py-1 border rounded w-16 ${pris?.status==='O'?'bg-red-50 text-red-700':pris?.status==='I'?'bg-yellow-50':''}">
+                  <option value="P" ${(!pris||pris.status==='P')?'selected':''}>P</option>
+                  <option value="O" ${pris?.status==='O'?'selected':''}>O</option>
+                  <option value="I" ${pris?.status==='I'?'selected':''}>I</option>
+                </select>
+              </td>
+              <td>${renderOcjeneCol(u.id, predmet, 'aktivnost', datum, locked)}</td>
+              <td>${renderOcjeneCol(u.id, predmet, 'pismena', datum, locked)}</td>
+              <td>${renderOcjeneCol(u.id, predmet, 'usmena', datum, locked)}</td>
+              <td>${renderZakljucna(u.id, predmet)}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div class="flex justify-between items-center mt-6 no-print">
+      <div>
+        ${!locked ? `<button onclick="zakljucniSemestarBtn(${razredId},'${predmet}')" class="btn-success px-5 py-2.5 rounded-lg font-semibold">🔒 Zaključi semestar ${sem}</button>` : `<button onclick="zakljucniSemestarBtn(${razredId},'${predmet}')" class="btn-secondary px-5 py-2.5 rounded-lg font-semibold">🔓 Otključaj semestar</button>`}
+      </div>
+      <div class="flex gap-3">
+        <button onclick="window.print()" class="btn-secondary px-5 py-2.5 rounded-lg font-semibold">🖨 Štampaj</button>
+      </div>
+    </div>`;
+};
+
+function renderLekcijaPanel(razredId, predmet, datum) {
+  const l = DB.lekcije.find(x=>x.razredId===razredId&&x.predmet===predmet&&x.datum===datum);
+  return `<div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4">
+    <div class="flex justify-between items-start mb-2">
+      <h3 class="font-bold text-blue-900 flex items-center gap-2">📚 Lekcija za današnji čas</h3>
+      <button onclick="openLekcijaModal(${razredId},'${predmet}','${datum}')" class="text-blue-700 hover:bg-blue-100 px-3 py-1 rounded text-sm font-medium">${l?'✎ Uredi':'+ Dodaj'}</button>
+    </div>
+    ${l ? `<div><div class="font-bold text-gray-800">${l.naslov}</div><div class="text-sm text-gray-700 mt-1 whitespace-pre-wrap">${l.opis}</div></div>` : '<p class="text-sm text-gray-500">Još nije dodana lekcija za ovaj čas</p>'}
+  </div>`;
+}
+function openLekcijaModal(razredId, predmet, datum) {
+  const ex = DB.lekcije.find(l=>l.razredId===razredId&&l.predmet===predmet&&l.datum===datum);
+  const ppKey = `${razredId}_${predmet}`;
+  const planLista = DB.planProgram[ppKey] || [];
+  showModal(`<h3 class="text-xl font-bold mb-4">${ex?'Uredi':'Dodaj'} lekciju</h3>
+    <form id="lf" class="space-y-3">
+      ${planLista.length ? `<div><label class="text-sm font-medium block mb-1">Iz plana i programa</label>
+        <select onchange="if(this.value){document.querySelector('[name=naslov]').value=this.value;}" class="w-full px-3 py-2 border rounded-lg">
+          <option value="">-- ili odaberi iz plana --</option>
+          ${planLista.map(p=>`<option value="${p.naziv}">${p.naziv}</option>`).join('')}
+        </select>
+      </div>` : ''}
+      <div><label class="text-sm font-medium block mb-1">Naslov lekcije *</label><input name="naslov" value="${ex?.naslov||''}" required class="w-full px-3 py-2 border rounded-lg"></div>
+      <div><label class="text-sm font-medium block mb-1">Opis / sadržaj</label><textarea name="opis" class="w-full px-3 py-2 border rounded-lg h-32">${ex?.opis||''}</textarea></div>
+      <div class="flex justify-end gap-2 pt-4 border-t">
+        <button type="button" onclick="closeModal()" class="btn-secondary px-4 py-2 rounded-lg">Otkaži</button>
+        <button type="submit" class="btn-primary px-4 py-2 rounded-lg">Sačuvaj</button>
+      </div>
+    </form>`);
+  document.getElementById('lf').onsubmit = e => {
+    e.preventDefault();
+    const d = Object.fromEntries(new FormData(e.target));
+    if (ex) Object.assign(ex, d);
+    else DB.lekcije.push({ id: Date.now(), razredId, predmet, datum, nastavnikId: currentUser.id, ...d });
+    saveData(); closeModal(); navigate('dnevnik'); showNotification('Lekcija sačuvana!');
+  };
+}
+function setPrisustvo(ucenikId, predmet, datum, status) {
+  let p = DB.prisustva.find(x=>x.ucenikId===ucenikId&&x.predmet===predmet&&x.datum===datum);
+  if (p) p.status = status;
+  else DB.prisustva.push({ id: Date.now(), ucenikId, predmet, datum, status });
+  saveData();
+}
+
+function renderOcjeneCol(ucenikId, predmet, tip, datum, locked) {
+  const sve = DB.ocjene.filter(o=>o.ucenikId===ucenikId&&o.predmet===predmet&&o.tip===tip&&!o.zakljucna).sort((a,b)=>a.datum.localeCompare(b.datum));
+  let html = '<div class="flex flex-wrap items-center justify-center gap-0.5">';
+  sve.forEach(o => {
+    const cls = o.vrijednost==='NPS' ? 'ocjena-NPS' : 'ocjena-'+o.vrijednost;
+    if (o.zamjenjeno) html += `<span class="ocjena-chip ocjena-old" title="Popravljena ${fmtDate(o.datum)}">${o.vrijednost}</span>`;
+    else html += `<span class="ocjena-chip ${cls}" title="${fmtDate(o.datum)}${o.biljeska?' - '+o.biljeska:''} - klik za brisanje" onclick="${locked?'':`obrisiOcjenu(${o.id})`}">${o.vrijednost}</span>`;
+  });
+  if (!locked) html += `<button onclick="dodajOcjenu(${ucenikId},'${predmet}','${tip}','${datum}')" class="add-grade-btn" title="Dodaj ocjenu">+</button>`;
+  html += '</div>';
+  return html;
+}
+
+function dodajOcjenu(ucenikId, predmet, tip, datum) {
+  const u = DB.ucenici.find(x=>x.id===ucenikId);
+  const sve = DB.ocjene.filter(o=>o.ucenikId===ucenikId&&o.predmet===predmet&&o.tip===tip&&!o.zamjenjeno&&!o.zakljucna);
+  showModal(`<h3 class="text-lg font-bold mb-2">Dodaj ocjenu (${tip})</h3>
+    <p class="text-sm text-gray-600 mb-4">Učenik: <b>${u.prezime} ${u.ime}</b> • ${predmet}</p>
+    ${sve.length ? `<div class="mb-4 p-3 bg-gray-50 rounded-lg">
+      <div class="text-xs text-gray-600 mb-2">Postojeće aktivne ocjene:</div>
+      <div>${sve.map(o=>`<span class="ocjena-chip ocjena-${o.vrijednost}" style="cursor:default">${o.vrijednost}</span>`).join('')}</div>
+      <label class="flex items-center gap-2 mt-3 cursor-pointer"><input type="checkbox" id="popravlja" onchange="document.getElementById('zamjenjujeId').classList.toggle('hidden',!this.checked)"> <span class="text-sm">Ovo je <b>popravljena ocjena</b> (precrtava prethodnu)</span></label>
+      <select id="zamjenjujeId" class="w-full px-3 py-2 border rounded-lg mt-2 hidden">
+        ${sve.map(o=>`<option value="${o.id}">Zamjeni: ${o.vrijednost} (${fmtDate(o.datum)})</option>`).join('')}
+      </select>
+    </div>` : ''}
+    <div><label class="text-sm font-medium block mb-2">Odaberi ocjenu:</label>
+      <div class="grid grid-cols-5 gap-2 mb-2">
+        ${[1,2,3,4,5].map(v=>`<button onclick="potvrdiOcjenu(${ucenikId},'${predmet}','${tip}','${datum}',${v})" class="ocjena-chip ocjena-${v}" style="height:60px;font-size:1.8rem">${v}</button>`).join('')}
+      </div>
+      <button onclick="potvrdiOcjenu(${ucenikId},'${predmet}','${tip}','${datum}','NPS')" class="ocjena-chip ocjena-NPS w-full" style="height:42px;font-size:1rem" title="Nije pristupio ispitivanju">NPS - Nije pristupio</button>
+    </div>
+    <div><label class="text-sm font-medium block mb-1 mt-3">Bilješka (opcionalno)</label><input id="ocjBiljeska" class="w-full px-3 py-2 border rounded-lg" placeholder="npr. odgovarala lekciju..."></div>
+    <div class="flex justify-end mt-4">
+      <button onclick="closeModal()" class="btn-secondary px-4 py-2 rounded-lg">Otkaži</button>
+    </div>`);
+}
+function potvrdiOcjenu(ucenikId, predmet, tip, datum, vrijednost) {
+  const pop = document.getElementById('popravlja');
+  let zam = null;
+  if (pop && pop.checked) {
+    zam = +document.getElementById('zamjenjujeId').value;
+    const stara = DB.ocjene.find(o=>o.id===zam);
+    if (stara) stara.zamjenjeno = true;
+  }
+  const biljeska = document.getElementById('ocjBiljeska')?.value || '';
+  DB.ocjene.push({ id: Date.now(), ucenikId, predmet, tip, vrijednost, datum, semestar: getCurrentSemester(), nastavnikId: currentUser.id, zamjenjuje: zam, zamjenjeno: false, zakljucna: false, biljeska });
+  // notifikacija učeniku
+  const ucUser = DB.users.find(u=>u.ucenikId===ucenikId);
+  if (ucUser) {
+    DB.obavijesti.push({ id: Date.now()+1, naslov: 'Nova ocjena', tekst: `Dobili ste ocjenu ${vrijednost} iz predmeta ${predmet} (${tip})`, datum: todayISO(), za: null, zaId: ucUser.id });
+  }
+  saveData(); closeModal();
+  navigate(currentView, viewState);
+  showNotification(`Ocjena ${vrijednost} dodana!`);
+}
+function obrisiOcjenu(id) {
+  if (!confirm('Obrisati ovu ocjenu?')) return;
+  const o = DB.ocjene.find(x=>x.id===id);
+  if (o?.zamjenjuje) {
+    const stara = DB.ocjene.find(x=>x.id===o.zamjenjuje);
+    if (stara) stara.zamjenjeno = false;
+  }
+  DB.ocjene = DB.ocjene.filter(x=>x.id!==id);
+  saveData(); navigate(currentView, viewState); showNotification('Ocjena obrisana');
+}
+
+function renderZakljucna(ucenikId, predmet) {
+  const sem = getCurrentSemester();
+  const z = DB.ocjene.find(o=>o.ucenikId===ucenikId&&o.predmet===predmet&&o.zakljucna&&o.semestar===sem);
+  if (z) {
+    const cls = z.vrijednost==='NPS' ? 'ocjena-NPS' : 'ocjena-'+z.vrijednost;
+    return `<span class="ocjena-chip ${cls}" style="font-size:1.1rem;min-width:36px;height:36px;cursor:pointer" onclick="zakljuciJednog(${ucenikId},'${predmet}')" title="Klik za izmjenu zaključne">${z.vrijednost}</span>`;
+  }
+  const akt = DB.ocjene.filter(o=>o.ucenikId===ucenikId&&o.predmet===predmet&&!o.zamjenjeno&&!o.zakljucna&&o.semestar===sem&&o.vrijednost!=='NPS'&&!isNaN(+o.vrijednost)).map(o=>+o.vrijednost);
+  if (!akt.length) return `<button onclick="zakljuciJednog(${ucenikId},'${predmet}')" class="text-gray-400 hover:text-blue-600 text-sm" title="Zaključi ocjenu">+ zakl.</button>`;
+  const avg = (akt.reduce((a,b)=>a+b,0)/akt.length).toFixed(1);
+  return `<span onclick="zakljuciJednog(${ucenikId},'${predmet}')" class="text-gray-500 text-sm cursor-pointer hover:text-blue-700" title="Klik za zaključavanje - prijedlog ${avg}">~${avg}</span>`;
+}
+
+// Pojedinačno zaključavanje/izmjena
+function zakljuciJednog(ucenikId, predmet) {
+  const sem = getCurrentSemester();
+  const u = DB.ucenici.find(x=>x.id===ucenikId);
+  const postojeca = DB.ocjene.find(o=>o.ucenikId===ucenikId&&o.predmet===predmet&&o.zakljucna&&o.semestar===sem);
+  const akt = DB.ocjene.filter(o=>o.ucenikId===ucenikId&&o.predmet===predmet&&!o.zamjenjeno&&!o.zakljucna&&o.semestar===sem&&o.vrijednost!=='NPS'&&!isNaN(+o.vrijednost)).map(o=>+o.vrijednost);
+  const prijedlog = akt.length ? Math.round(akt.reduce((a,b)=>a+b,0)/akt.length) : 0;
+  showModal(`<h3 class="text-xl font-bold mb-2">Zaključna ocjena</h3>
+    <p class="text-sm text-gray-600 mb-4">Učenik: <b>${u.prezime} ${u.ime}</b> • ${predmet} • Sem. ${sem}</p>
+    ${akt.length ? `<div class="mb-3 p-3 bg-blue-50 rounded-lg text-sm">
+      <div>Aktivne ocjene: ${akt.join(', ')}</div>
+      <div class="mt-1">Prosjek: <b>${(akt.reduce((a,b)=>a+b,0)/akt.length).toFixed(2)}</b> → Prijedlog: <b class="text-blue-700">${prijedlog}</b></div>
+    </div>` : '<div class="text-sm text-gray-500 mb-3">Učenik nema aktivnih ocjena u ovom semestru.</div>'}
+    ${postojeca ? `<div class="mb-3 p-2 bg-yellow-50 rounded text-sm">Trenutna zaključna: <b>${postojeca.vrijednost}</b> <button onclick="ukloniZakljucnu(${ucenikId},'${predmet}')" class="text-red-600 hover:underline ml-2">Ukloni</button></div>` : ''}
+    <label class="text-sm font-medium block mb-2">Odaberi zaključnu ocjenu:</label>
+    <div class="grid grid-cols-5 gap-2 mb-2">
+      ${[1,2,3,4,5].map(v=>`<button onclick="postaviZakljucnu(${ucenikId},'${predmet}',${v})" class="ocjena-chip ocjena-${v} ${v===prijedlog?'ring-2 ring-blue-500':''}" style="height:55px;font-size:1.6rem">${v}</button>`).join('')}
+    </div>
+    <button onclick="postaviZakljucnu(${ucenikId},'${predmet}','NPS')" class="ocjena-chip ocjena-NPS w-full" style="height:40px;font-size:0.9rem">NPS</button>
+    <div class="flex justify-end mt-4 pt-3 border-t"><button onclick="closeModal()" class="btn-secondary px-4 py-2 rounded-lg">Otkaži</button></div>`);
+}
+function postaviZakljucnu(ucenikId, predmet, vrijednost) {
+  const sem = getCurrentSemester();
+  // ukloni postojeću
+  DB.ocjene = DB.ocjene.filter(o=>!(o.ucenikId===ucenikId&&o.predmet===predmet&&o.zakljucna&&o.semestar===sem));
+  DB.ocjene.push({ id: Date.now()+Math.random(), ucenikId, predmet, tip:'zakljucna', vrijednost, datum: todayISO(), semestar: sem, nastavnikId: currentUser.id, zakljucna: true, zamjenjeno: false });
+  const ucUser = DB.users.find(u=>u.ucenikId===ucenikId);
+  if (ucUser) DB.obavijesti.push({ id: Date.now()+1, naslov: 'Zaključna ocjena', tekst: `${predmet}: zaključno ${vrijednost} (semestar ${sem})`, datum: todayISO(), za: null, zaId: ucUser.id });
+  saveData(); closeModal(); navigate(currentView, viewState); showNotification('Zaključna ocjena upisana!');
+}
+function ukloniZakljucnu(ucenikId, predmet) {
+  if (!confirm('Ukloniti zaključnu ocjenu?')) return;
+  const sem = getCurrentSemester();
+  DB.ocjene = DB.ocjene.filter(o=>!(o.ucenikId===ucenikId&&o.predmet===predmet&&o.zakljucna&&o.semestar===sem));
+  saveData(); closeModal(); navigate(currentView, viewState); showNotification('Zaključna uklonjena');
+}
+
+function zakljucniSemestarBtn(razredId, predmet) {
+  const sem = getCurrentSemester();
+  if (isSemesterLocked(razredId, predmet, sem)) {
+    if (confirm('Otključati semestar? Zaključne ocjene će ostati.')) {
+      DB.zakljucniSemestri = DB.zakljucniSemestri.filter(z=>!(z.razredId===razredId&&z.predmet===predmet&&z.semestar===sem));
+      saveData(); navigate('dnevnik'); showNotification('Semestar otključan');
+    }
+    return;
+  }
+  if (!confirm(`Zaključiti semestar ${sem} za ${predmet}?\nSvim učenicima će se upisati zaključna ocjena na osnovu prosjeka.`)) return;
+  DB.ucenici.filter(u=>u.razredId===razredId).forEach(u=>{
+    const akt = DB.ocjene.filter(o=>o.ucenikId===u.id&&o.predmet===predmet&&!o.zamjenjeno&&!o.zakljucna&&o.semestar===sem).map(o=>+o.vrijednost);
+    if (!akt.length) return;
+    const avg = akt.reduce((a,b)=>a+b,0)/akt.length;
+    const zakl = Math.round(avg);
+    DB.ocjene.push({ id: Date.now()+Math.random(), ucenikId: u.id, predmet, tip:'zakljucna', vrijednost: zakl, datum: todayISO(), semestar: sem, nastavnikId: currentUser.id, zakljucna: true, zamjenjeno: false });
+  });
+  DB.zakljucniSemestri.push({ razredId, predmet, semestar: sem, datum: todayISO() });
+  DB.obavijesti.push({ id: Date.now(), naslov: 'Semestar zaključan', tekst: `${predmet} - ${getRazredName(razredId)} - semestar ${sem}`, datum: todayISO(), za: 'ucenik' });
+  saveData(); navigate('dnevnik'); showNotification('Semestar zaključan!');
+}
+
+// =========================== PLAN I PROGRAM ===========================
+RENDERERS.planprogram = function(c) {
+  const razredId = +(document.getElementById('ppRazred')?.value || DB.razredi[0]?.id);
+  const predmet = document.getElementById('ppPredmet')?.value || (currentUser.predmeti||DB.predmeti)[0];
+  const key = `${razredId}_${predmet}`;
+  if (!DB.planProgram[key]) DB.planProgram[key] = [];
+  const lista = DB.planProgram[key];
+  const done = lista.filter(l=>l.ostvareno).length;
+  const pct = lista.length ? Math.round((done/lista.length)*100) : 0;
+  c.innerHTML = `
+    <h2 class="text-3xl font-bold mb-4">Plan i program</h2>
+    <div class="flex gap-6 border-b mb-6 overflow-x-auto">
+      ${[['dnevnik','Dnevnik'],['planprogram','Plan i program'],['materijali','Nastavni materijal'],['biljeske','Bilješke']].map(([k,n])=>`
+        <button onclick="navigate('${k}')" class="pb-3 px-1 whitespace-nowrap ${currentView===k?'tab-active':'tab-inactive'}">${n}</button>`).join('')}
+    </div>
+    <div class="flex flex-wrap gap-4 mb-6 bg-white p-4 rounded-xl border">
+      <div class="flex items-center gap-3"><label class="font-semibold">Razred</label>
+        <select id="ppRazred" onchange="navigate('planprogram')" class="px-3 py-2 border rounded-lg">${DB.razredi.map(r=>`<option value="${r.id}" ${r.id===razredId?'selected':''}>${r.naziv}</option>`).join('')}</select>
+      </div>
+      <div class="flex items-center gap-3"><label class="font-semibold">Predmet</label>
+        <select id="ppPredmet" onchange="navigate('planprogram')" class="px-3 py-2 border rounded-lg">${(currentUser.predmeti||DB.predmeti).map(p=>`<option ${p===predmet?'selected':''}>${p}</option>`).join('')}</select>
+      </div>
+      <button onclick="dodajLekcijuPP('${key}')" class="ml-auto btn-primary px-4 py-2 rounded-lg font-semibold">+ Nova jedinica</button>
+    </div>
+    ${lista.length ? `<div class="bg-white border rounded-xl p-4 mb-4">
+      <div class="flex justify-between text-sm mb-2"><span class="font-semibold">Napredak: ${done}/${lista.length}</span><span class="font-bold text-blue-700">${pct}%</span></div>
+      <div class="w-full bg-gray-200 rounded-full h-3"><div class="bg-gradient-to-r from-blue-500 to-blue-700 h-3 rounded-full transition-all" style="width:${pct}%"></div></div>
+    </div>` : ''}
+    <div class="bg-white border rounded-xl overflow-hidden">
+      <table>
+        <thead><tr><th style="width:50px">Br.</th><th style="text-align:left">Nastavna jedinica</th><th style="text-align:left">Opis</th><th style="width:100px">Ostvareno</th><th style="width:140px">Akcije</th></tr></thead>
+        <tbody>${lista.length ? lista.map((l,i)=>`<tr class="${l.ostvareno?'bg-green-50':''}">
+          <td>${i+1}</td>
+          <td style="text-align:left;padding-left:16px"><b>${l.naziv}</b></td>
+          <td style="text-align:left" class="text-sm text-gray-600">${l.opis||''}</td>
+          <td><input type="checkbox" class="w-5 h-5" ${l.ostvareno?'checked':''} onchange="lekcijaPPCheck('${key}',${i},this.checked)"></td>
+          <td>
+            <button onclick="dodajLekcijuPP('${key}',${i})" class="text-blue-600 hover:underline mr-2 text-sm">Uredi</button>
+            <button onclick="obrisiLekcijuPP('${key}',${i})" class="text-red-600 hover:underline text-sm">Obriši</button>
+          </td>
+        </tr>`).join('') : '<tr><td colspan="5" class="empty-state">Nema nastavnih jedinica</td></tr>'}</tbody>
+      </table>
+    </div>`;
+};
+function dodajLekcijuPP(key, idx) {
+  const lista = DB.planProgram[key];
+  const ex = idx!==undefined ? lista[idx] : { naziv:'',opis:'',ostvareno:false };
+  showModal(`<h3 class="text-xl font-bold mb-4">${idx!==undefined?'Uredi':'Nova'} jedinica</h3>
+    <form id="ppf" class="space-y-3">
+      <div><label class="text-sm font-medium block mb-1">Naziv *</label><input name="naziv" value="${ex.naziv}" required class="w-full px-3 py-2 border rounded-lg"></div>
+      <div><label class="text-sm font-medium block mb-1">Opis</label><textarea name="opis" class="w-full px-3 py-2 border rounded-lg h-24">${ex.opis||''}</textarea></div>
+      <div class="flex justify-end gap-2 pt-4 border-t">
+        <button type="button" onclick="closeModal()" class="btn-secondary px-4 py-2 rounded-lg">Otkaži</button>
+        <button type="submit" class="btn-primary px-4 py-2 rounded-lg">Sačuvaj</button>
+      </div>
+    </form>`);
+  document.getElementById('ppf').onsubmit = e => {
+    e.preventDefault();
+    const d = Object.fromEntries(new FormData(e.target));
+    if (idx!==undefined) Object.assign(lista[idx], d);
+    else lista.push({ ...d, ostvareno: false });
+    saveData(); closeModal(); navigate('planprogram'); showNotification('Sačuvano!');
+  };
+}
+function obrisiLekcijuPP(key, i) { if (confirm('Obrisati?')) { DB.planProgram[key].splice(i,1); saveData(); navigate('planprogram'); } }
+function lekcijaPPCheck(key, i, v) { DB.planProgram[key][i].ostvareno = v; saveData(); navigate('planprogram'); }
+
+// =========================== MATERIJALI ===========================
+RENDERERS.materijali = function(c) {
+  const razredId = +(document.getElementById('matRazred')?.value || DB.razredi[0]?.id);
+  const predmet = document.getElementById('matPredmet')?.value || (currentUser.predmeti||DB.predmeti)[0];
+  const list = DB.materijali.filter(m=>m.razredId===razredId&&m.predmet===predmet).sort((a,b)=>b.datum.localeCompare(a.datum));
+  c.innerHTML = `
+    <h2 class="text-3xl font-bold mb-4">Nastavni materijal</h2>
+    <div class="flex gap-6 border-b mb-6 overflow-x-auto">
+      ${[['dnevnik','Dnevnik'],['planprogram','Plan i program'],['materijali','Nastavni materijal'],['biljeske','Bilješke']].map(([k,n])=>`
+        <button onclick="navigate('${k}')" class="pb-3 px-1 whitespace-nowrap ${currentView===k?'tab-active':'tab-inactive'}">${n}</button>`).join('')}
+    </div>
+    <div class="flex flex-wrap gap-4 mb-6 bg-white p-4 rounded-xl border">
+      <div class="flex items-center gap-3"><label class="font-semibold">Razred</label>
+        <select id="matRazred" onchange="navigate('materijali')" class="px-3 py-2 border rounded-lg">${DB.razredi.map(r=>`<option value="${r.id}" ${r.id===razredId?'selected':''}>${r.naziv}</option>`).join('')}</select>
+      </div>
+      <div class="flex items-center gap-3"><label class="font-semibold">Predmet</label>
+        <select id="matPredmet" onchange="navigate('materijali')" class="px-3 py-2 border rounded-lg">${(currentUser.predmeti||DB.predmeti).map(p=>`<option ${p===predmet?'selected':''}>${p}</option>`).join('')}</select>
+      </div>
+      <button onclick="dodajMaterijal(${razredId},'${predmet}')" class="ml-auto btn-primary px-4 py-2 rounded-lg font-semibold">+ Materijal</button>
+    </div>
+    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+      ${list.length ? list.map(m=>`<div class="bg-white border rounded-xl p-5 hover:shadow-lg transition">
+        <div class="flex justify-between items-start mb-2">
+          <div class="bg-blue-100 text-blue-700 w-10 h-10 rounded-lg flex items-center justify-center">📄</div>
+          <button onclick="obrisiMaterijal(${m.id})" class="text-red-500 hover:bg-red-50 w-7 h-7 rounded">×</button>
+        </div>
+        <h3 class="font-bold text-gray-800">${m.naziv}</h3>
+        <p class="text-xs text-gray-500 mb-2">${fmtDate(m.datum)}</p>
+        <p class="text-sm text-gray-700 whitespace-pre-wrap line-clamp-3">${m.opis||''}</p>
+        ${m.url?`<a href="${m.url}" target="_blank" class="text-blue-600 hover:underline text-sm mt-3 inline-flex items-center gap-1">📎 Otvori link</a>`:''}
+      </div>`).join('') : '<div class="empty-state col-span-3">Nema materijala</div>'}
+    </div>`;
+};
+function dodajMaterijal(razredId, predmet) {
+  showModal(`<h3 class="text-xl font-bold mb-4">Novi materijal</h3>
+    <form id="mf" class="space-y-3">
+      <div><label class="text-sm font-medium block mb-1">Naziv *</label><input name="naziv" required class="w-full px-3 py-2 border rounded-lg"></div>
+      <div><label class="text-sm font-medium block mb-1">Opis</label><textarea name="opis" class="w-full px-3 py-2 border rounded-lg h-24"></textarea></div>
+      <div><label class="text-sm font-medium block mb-1">URL/Link</label><input name="url" type="url" placeholder="https://..." class="w-full px-3 py-2 border rounded-lg"></div>
+      <div class="flex justify-end gap-2 pt-4 border-t">
+        <button type="button" onclick="closeModal()" class="btn-secondary px-4 py-2 rounded-lg">Otkaži</button>
+        <button type="submit" class="btn-primary px-4 py-2 rounded-lg">Sačuvaj</button>
+      </div>
+    </form>`);
+  document.getElementById('mf').onsubmit = e => {
+    e.preventDefault();
+    const d = Object.fromEntries(new FormData(e.target));
+    DB.materijali.push({ id: Date.now(), razredId, predmet, nastavnikId: currentUser.id, datum: todayISO(), ...d });
+    saveData(); closeModal(); navigate('materijali'); showNotification('Materijal dodan!');
+  };
+}
+function obrisiMaterijal(id) { if (confirm('Obrisati?')) { DB.materijali = DB.materijali.filter(m=>m.id!==id); saveData(); navigate('materijali'); } }
+
+// =========================== BILJEŠKE ===========================
+RENDERERS.biljeske = function(c) {
+  const list = DB.biljeske.filter(b=>b.nastavnikId===currentUser.id).sort((a,b)=>b.datum.localeCompare(a.datum));
+  c.innerHTML = `
+    <h2 class="text-3xl font-bold mb-4">Bilješke</h2>
+    <div class="flex gap-6 border-b mb-6 overflow-x-auto">
+      ${[['dnevnik','Dnevnik'],['planprogram','Plan i program'],['materijali','Nastavni materijal'],['biljeske','Bilješke']].map(([k,n])=>`
+        <button onclick="navigate('${k}')" class="pb-3 px-1 whitespace-nowrap ${currentView===k?'tab-active':'tab-inactive'}">${n}</button>`).join('')}
+    </div>
+    <button onclick="dodajBiljesku()" class="btn-primary px-4 py-2 rounded-lg font-semibold mb-4">+ Nova bilješka</button>
+    <div class="grid md:grid-cols-2 gap-4">
+      ${list.length ? list.map(b=>`<div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-lg shadow-sm hover:shadow-md transition">
+        <div class="flex justify-between text-xs text-gray-600 mb-2">
+          <div>📅 ${fmtDate(b.datum)} • ${getRazredName(b.razredId)} • ${b.predmet}</div>
+          <button onclick="obrisiBiljesku(${b.id})" class="text-red-500 hover:bg-red-100 w-6 h-6 rounded">×</button>
+        </div>
+        <div class="whitespace-pre-wrap text-gray-800">${b.tekst}</div>
+      </div>`).join('') : '<div class="empty-state col-span-2">Nema bilješki</div>'}
+    </div>`;
+};
+function dodajBiljesku() {
+  showModal(`<h3 class="text-xl font-bold mb-4">Nova bilješka</h3>
+    <form id="bf" class="space-y-3">
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="text-sm font-medium block mb-1">Razred</label>
+          <select name="razredId" class="w-full px-3 py-2 border rounded-lg">${DB.razredi.map(r=>`<option value="${r.id}">${r.naziv}</option>`).join('')}</select>
+        </div>
+        <div><label class="text-sm font-medium block mb-1">Predmet</label>
+          <select name="predmet" class="w-full px-3 py-2 border rounded-lg">${(currentUser.predmeti||DB.predmeti).map(p=>`<option>${p}</option>`).join('')}</select>
+        </div>
+      </div>
+      <div><label class="text-sm font-medium block mb-1">Tekst *</label><textarea name="tekst" required class="w-full px-3 py-2 border rounded-lg h-32"></textarea></div>
+      <div class="flex justify-end gap-2 pt-4 border-t">
+        <button type="button" onclick="closeModal()" class="btn-secondary px-4 py-2 rounded-lg">Otkaži</button>
+        <button type="submit" class="btn-primary px-4 py-2 rounded-lg">Sačuvaj</button>
+      </div>
+    </form>`);
+  document.getElementById('bf').onsubmit = e => {
+    e.preventDefault();
+    const d = Object.fromEntries(new FormData(e.target));
+    DB.biljeske.push({ id: Date.now(), nastavnikId: currentUser.id, razredId: +d.razredId, predmet: d.predmet, tekst: d.tekst, datum: todayISO() });
+    saveData(); closeModal(); navigate('biljeske'); showNotification('Bilješka sačuvana!');
+  };
+}
+function obrisiBiljesku(id) { if (confirm('Obrisati?')) { DB.biljeske = DB.biljeske.filter(b=>b.id!==id); saveData(); navigate('biljeske'); } }
+
+// =========================== DOMAĆI ZADACI ===========================
+RENDERERS.domaci = function(c) {
+  const list = DB.domaci.filter(d=>d.nastavnikId===currentUser.id).sort((a,b)=>b.datum.localeCompare(a.datum));
+  c.innerHTML = `
+    <div class="flex justify-between items-center mb-6">
+      <h2 class="text-3xl font-bold">Domaće zadaće</h2>
+      <button onclick="dodajDomaci()" class="btn-primary px-4 py-2 rounded-lg font-semibold">+ Nova zadaća</button>
+    </div>
+    <div class="grid md:grid-cols-2 gap-4">
+      ${list.length ? list.map(d=>{
+        const daysLeft = Math.ceil((new Date(d.rok)-new Date())/(1000*60*60*24));
+        const passed = daysLeft < 0;
+        return `<div class="bg-white border rounded-xl p-5 ${passed?'opacity-60':''} hover:shadow-md transition">
+          <div class="flex justify-between items-start mb-2">
+            <h3 class="font-bold text-lg">${d.naslov}</h3>
+            <span class="badge ${passed?'bg-gray-100 text-gray-600':daysLeft<=1?'bg-red-100 text-red-700':daysLeft<=3?'bg-yellow-100 text-yellow-700':'bg-green-100 text-green-700'}">${passed?'isteklo':daysLeft===0?'danas!':daysLeft+' dana'}</span>
+          </div>
+          <p class="text-sm text-gray-500 mb-2">${d.predmet} • ${getRazredName(d.razredId)}</p>
+          <p class="text-sm text-gray-700 mb-3 whitespace-pre-wrap">${d.opis||''}</p>
+          <div class="flex justify-between items-center text-xs text-gray-500">
+            <span>Rok: <b>${fmtDate(d.rok)}</b></span>
+            <button onclick="obrisiDomaci(${d.id})" class="text-red-500 hover:underline">Obriši</button>
+          </div>
+        </div>`;
+      }).join('') : '<div class="empty-state col-span-2">Nema dodijeljenih zadaća</div>'}
+    </div>`;
+};
+function dodajDomaci() {
+  showModal(`<h3 class="text-xl font-bold mb-4">Nova zadaća</h3>
+    <form id="df" class="space-y-3">
+      <div><label class="text-sm font-medium block mb-1">Naslov *</label><input name="naslov" required class="w-full px-3 py-2 border rounded-lg"></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="text-sm font-medium block mb-1">Razred</label>
+          <select name="razredId" class="w-full px-3 py-2 border rounded-lg">${DB.razredi.map(r=>`<option value="${r.id}">${r.naziv}</option>`).join('')}</select>
+        </div>
+        <div><label class="text-sm font-medium block mb-1">Predmet</label>
+          <select name="predmet" class="w-full px-3 py-2 border rounded-lg">${(currentUser.predmeti||DB.predmeti).map(p=>`<option>${p}</option>`).join('')}</select>
+        </div>
+      </div>
+      <div><label class="text-sm font-medium block mb-1">Opis</label><textarea name="opis" class="w-full px-3 py-2 border rounded-lg h-24"></textarea></div>
+      <div><label class="text-sm font-medium block mb-1">Rok *</label><input name="rok" type="date" required class="w-full px-3 py-2 border rounded-lg" value="${todayISO()}"></div>
+      <div class="flex justify-end gap-2 pt-4 border-t">
+        <button type="button" onclick="closeModal()" class="btn-secondary px-4 py-2 rounded-lg">Otkaži</button>
+        <button type="submit" class="btn-primary px-4 py-2 rounded-lg">Sačuvaj</button>
+      </div>
+    </form>`);
+  document.getElementById('df').onsubmit = e => {
+    e.preventDefault();
+    const d = Object.fromEntries(new FormData(e.target));
+    DB.domaci.push({ id: Date.now(), nastavnikId: currentUser.id, razredId: +d.razredId, predmet: d.predmet, naslov: d.naslov, opis: d.opis, rok: d.rok, datum: todayISO() });
+    DB.obavijesti.push({ id: Date.now()+1, naslov: 'Nova zadaća', tekst: `${d.predmet}: ${d.naslov} (rok: ${fmtDate(d.rok)})`, datum: todayISO(), za: 'ucenik' });
+    saveData(); closeModal(); navigate('domaci'); showNotification('Zadaća dodana!');
+  };
+}
+function obrisiDomaci(id) { if (confirm('Obrisati?')) { DB.domaci = DB.domaci.filter(d=>d.id!==id); saveData(); navigate('domaci'); } }
+
+// =========================== OCJENE (nastavnik) ===========================
+RENDERERS.ocjene = function(c) {
+  const razredId = +(document.getElementById('ocRazred')?.value || DB.razredi[0]?.id);
+  const predmet = document.getElementById('ocPredmet')?.value || (currentUser.predmeti||DB.predmeti)[0];
+  c.innerHTML = `
+    <h2 class="text-3xl font-bold mb-4">Ocjene</h2>
+    <div class="flex flex-wrap gap-4 mb-6 bg-white p-4 rounded-xl border">
+      <div class="flex items-center gap-3"><label class="font-semibold">Razred</label>
+        <select id="ocRazred" onchange="navigate('ocjene')" class="px-3 py-2 border rounded-lg">${DB.razredi.map(r=>`<option value="${r.id}" ${r.id===razredId?'selected':''}>${r.naziv}</option>`).join('')}</select>
+      </div>
+      <div class="flex items-center gap-3"><label class="font-semibold">Predmet</label>
+        <select id="ocPredmet" onchange="navigate('ocjene')" class="px-3 py-2 border rounded-lg">${(currentUser.predmeti||DB.predmeti).map(p=>`<option ${p===predmet?'selected':''}>${p}</option>`).join('')}</select>
+      </div>
+    </div>
+    <div class="bg-white border rounded-xl overflow-hidden">
+      <table>
+        <thead><tr><th>Br.</th><th style="text-align:left">Učenik</th><th>Aktivnost</th><th>Pismene</th><th>Usmene</th><th>Prosjek</th><th>Zakl. I</th><th>Zakl. II</th></tr></thead>
+        <tbody>${DB.ucenici.filter(u=>u.razredId===razredId).map((u,i)=>{
+          const akt = DB.ocjene.filter(o=>o.ucenikId===u.id&&o.predmet===predmet&&!o.zakljucna);
+          const z1 = DB.ocjene.find(o=>o.ucenikId===u.id&&o.predmet===predmet&&o.zakljucna&&o.semestar===1);
+          const z2 = DB.ocjene.find(o=>o.ucenikId===u.id&&o.predmet===predmet&&o.zakljucna&&o.semestar===2);
+          return `<tr>
+            <td>${i+1}</td>
+            <td style="text-align:left;padding-left:16px"><b>${u.prezime} ${u.ime}</b></td>
+            <td>${renderOcjeneCol(u.id, predmet, 'aktivnost', todayISO(), false)}</td>
+            <td>${renderOcjeneCol(u.id, predmet, 'pismena', todayISO(), false)}</td>
+            <td>${renderOcjeneCol(u.id, predmet, 'usmena', todayISO(), false)}</td>
+            <td><b class="text-blue-700">${avgOcjena(akt)}</b></td>
+            <td>${z1?`<span class="ocjena-chip ocjena-${z1.vrijednost}" style="cursor:default">${z1.vrijednost}</span>`:'-'}</td>
+            <td>${z2?`<span class="ocjena-chip ocjena-${z2.vrijednost}" style="cursor:default">${z2.vrijednost}</span>`:'-'}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+    </div>`;
+};
+
+// =========================== PREGLED OCJENA (admin) ===========================
+RENDERERS.ocjene_pregled = function(c) {
+  const search = (document.getElementById('opSearch')?.value||'').toLowerCase();
+  let list = DB.ocjene.slice().sort((a,b)=>b.datum.localeCompare(a.datum));
+  if (search) list = list.filter(o=>{
+    const u = DB.ucenici.find(x=>x.id===o.ucenikId);
+    return (u?.ime+' '+u?.prezime).toLowerCase().includes(search) || o.predmet.toLowerCase().includes(search);
+  });
+  c.innerHTML = `<h2 class="text-3xl font-bold mb-6">Pregled svih ocjena</h2>
+    <input id="opSearch" oninput="navigate('ocjene_pregled')" value="${search}" placeholder="🔍 Pretraži po učeniku ili predmetu..." class="w-full px-4 py-2 border rounded-lg mb-4">
+    <div class="bg-white border rounded-xl overflow-hidden">
+      <table>
+        <thead><tr><th>Datum</th><th>Učenik</th><th>Razred</th><th>Predmet</th><th>Tip</th><th>Ocjena</th><th>Sem.</th><th>Nastavnik</th><th>Status</th></tr></thead>
+        <tbody>${list.length ? list.map(o=>{
+          const u = DB.ucenici.find(x=>x.id===o.ucenikId);
+          return `<tr>
+            <td>${fmtDate(o.datum)}</td>
+            <td style="text-align:left">${u?.prezime} ${u?.ime}</td>
+            <td>${getRazredName(u?.razredId)}</td>
+            <td>${o.predmet}</td>
+            <td>${o.tip}${o.zakljucna?' ⭐':''}</td>
+            <td><span class="ocjena-chip ocjena-${o.vrijednost}" style="cursor:default">${o.vrijednost}</span></td>
+            <td>${o.semestar}</td>
+            <td class="text-xs">${getNastavnikName(o.nastavnikId)}</td>
+            <td>${o.zamjenjeno?'<span class="badge bg-red-100 text-red-700">popravljena</span>':'<span class="badge bg-green-100 text-green-700">aktivna</span>'}</td>
+          </tr>`;
+        }).join('') : '<tr><td colspan="9" class="empty-state">Nema unesenih ocjena</td></tr>'}</tbody>
+      </table>
+    </div>`;
+};
+
+// =========================== UČENIK: moje ocjene ===========================
+RENDERERS.mojeocjene = function(c) {
+  const u = DB.ucenici.find(x=>x.id===currentUser.ucenikId);
+  if (!u) { c.innerHTML = '<div class="empty-state">Nema povezanog učenika</div>'; return; }
+  const predmeti = [...new Set([...DB.ocjene.filter(o=>o.ucenikId===u.id).map(o=>o.predmet), ...DB.casovi.filter(cs=>cs.razredId===u.razredId).map(cs=>cs.predmet)])];
+  c.innerHTML = `<h2 class="text-3xl font-bold mb-6">Moje ocjene</h2>
+    <div class="bg-white border rounded-xl overflow-hidden mb-4">
+      <table>
+        <thead><tr><th style="text-align:left">Predmet</th><th>Aktivnost</th><th>Pismene</th><th>Usmene</th><th>Prosjek</th><th>Zakl. I</th><th>Zakl. II</th></tr></thead>
+        <tbody>${predmeti.length ? predmeti.map(p=>{
+          const oc = DB.ocjene.filter(o=>o.ucenikId===u.id&&o.predmet===p&&!o.zakljucna);
+          const z1 = DB.ocjene.find(o=>o.ucenikId===u.id&&o.predmet===p&&o.zakljucna&&o.semestar===1);
+          const z2 = DB.ocjene.find(o=>o.ucenikId===u.id&&o.predmet===p&&o.zakljucna&&o.semestar===2);
+          const ren = (tip) => {
+            const list = oc.filter(o=>o.tip===tip).sort((a,b)=>a.datum.localeCompare(b.datum));
+            return list.length ? list.map(o=>`<span class="ocjena-chip ${o.zamjenjeno?'ocjena-old':'ocjena-'+o.vrijednost}" style="cursor:default" title="${fmtDate(o.datum)}">${o.vrijednost}</span>`).join('') : '<span class="text-gray-300">-</span>';
+          };
+          return `<tr>
+            <td style="text-align:left;padding-left:16px"><b>${p}</b></td>
+            <td>${ren('aktivnost')}</td><td>${ren('pismena')}</td><td>${ren('usmena')}</td>
+            <td><b class="text-blue-700">${avgOcjena(oc)}</b></td>
+            <td>${z1?`<span class="ocjena-chip ocjena-${z1.vrijednost}" style="cursor:default">${z1.vrijednost}</span>`:'-'}</td>
+            <td>${z2?`<span class="ocjena-chip ocjena-${z2.vrijednost}" style="cursor:default">${z2.vrijednost}</span>`:'-'}</td>
+          </tr>`;
+        }).join('') : '<tr><td colspan="7" class="empty-state">Nema ocjena</td></tr>'}</tbody>
+      </table>
+    </div>
+    <p class="text-sm text-gray-500">💡 Precrtane ocjene su popravljene novim ocjenama.</p>`;
+};
+
+// =========================== UČENIK: prisustvo ===========================
+RENDERERS.mojeprisustvo = function(c) {
+  const u = DB.ucenici.find(x=>x.id===currentUser.ucenikId);
+  const pris = DB.prisustva.filter(p=>p.ucenikId===u?.id).sort((a,b)=>b.datum.localeCompare(a.datum));
+  const p = pris.filter(x=>x.status==='P').length;
+  const o = pris.filter(x=>x.status==='O').length;
+  const i = pris.filter(x=>x.status==='I').length;
+  c.innerHTML = `<h2 class="text-3xl font-bold mb-6">Moje prisustvo</h2>
+    <div class="grid grid-cols-3 gap-4 mb-6">
+      <div class="bg-green-100 border border-green-300 rounded-xl p-5 text-center"><div class="text-4xl font-bold text-green-700">${p}</div><div class="text-sm text-gray-700 mt-1">Prisutan</div></div>
+      <div class="bg-red-100 border border-red-300 rounded-xl p-5 text-center"><div class="text-4xl font-bold text-red-700">${o}</div><div class="text-sm text-gray-700 mt-1">Odsutan</div></div>
+      <div class="bg-yellow-100 border border-yellow-300 rounded-xl p-5 text-center"><div class="text-4xl font-bold text-yellow-700">${i}</div><div class="text-sm text-gray-700 mt-1">Opravdano</div></div>
+    </div>
+    <div class="bg-white border rounded-xl overflow-hidden">
+      <table>
+        <thead><tr><th>Datum</th><th>Predmet</th><th>Status</th></tr></thead>
+        <tbody>${pris.length ? pris.map(p=>`<tr>
+          <td>${fmtDate(p.datum)}</td><td>${p.predmet}</td>
+          <td><span class="badge ${p.status==='P'?'bg-green-100 text-green-700':p.status==='O'?'bg-red-100 text-red-700':'bg-yellow-100 text-yellow-700'}">${p.status==='P'?'Prisutan':p.status==='O'?'Odsutan':'Opravdano'}</span></td>
+        </tr>`).join('') : '<tr><td colspan="3" class="empty-state">Nema evidencije</td></tr>'}</tbody>
+      </table>
+    </div>`;
+};
+
+// =========================== UČENIK: raspored ===========================
+RENDERERS.mojiraspored = function(c) {
+  const u = DB.ucenici.find(x=>x.id===currentUser.ucenikId);
+  const dani = [1,2,3,4,5];
+  const vremena = ['08:00','08:50','09:45','10:40','11:35','12:30','13:15'];
+  const today = new Date().getDay();
+  // generiši mapu datuma za ovu sedmicu po danima (1-5)
+  const now = new Date();
+  const monday = new Date(now); monday.setDate(now.getDate() - ((now.getDay()+6)%7));
+  const datumiSedmice = {};
+  for (let i=0;i<5;i++) { const dt = new Date(monday); dt.setDate(monday.getDate()+i); datumiSedmice[i+1] = dt.toISOString().split('T')[0]; }
+  c.innerHTML = `<h2 class="text-3xl font-bold mb-6">Moj raspored - ${getRazredName(u?.razredId)}</h2>
+    <p class="text-sm text-gray-500 mb-3">💡 Crvena oznaka znači da imate ispit toga dana iz tog predmeta.</p>
+    <div class="bg-white border rounded-xl overflow-hidden">
+      <table>
+        <thead><tr><th style="width:90px">Vrijeme</th>${dani.map(d=>`<th class="${d===today?'bg-blue-50 text-blue-700':''}">${getDanName(d)}<div class="text-xs font-normal text-gray-500">${fmtDate(datumiSedmice[d])}</div></th>`).join('')}</tr></thead>
+        <tbody>${vremena.map(v=>`<tr>
+          <td class="font-bold bg-gray-50">${v}</td>
+          ${dani.map(d=>{
+            const cs = DB.casovi.find(x=>x.razredId===u?.razredId&&x.dan===d&&x.vrijeme===v);
+            if (!cs) return '<td class="schedule-cell"><span class="text-gray-300">-</span></td>';
+            const dat = datumiSedmice[d];
+            const isp = DB.ispitivanja.find(i=>i.razredId===u?.razredId && i.predmet===cs.predmet && i.datum===dat);
+            return `<td class="schedule-cell ${isp?'ispitivanje-'+isp.tip:''}">
+              <div class="text-sm">
+                <div class="font-bold text-blue-700">${cs.predmet}</div>
+                <div class="text-xs text-gray-600 mt-1">${getNastavnikName(cs.nastavnikId)}</div>
+                ${cs.ucionica?`<div class="text-xs text-gray-500">📍 ${cs.ucionica}</div>`:''}
+                ${isp?`<div class="mt-1"><span class="badge bg-red-600 text-white text-[10px]">⚠ ${isp.tip}</span></div>`:''}
+              </div>
+            </td>`;
+          }).join('')}
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>
+    ${(()=>{const nadIspiti = DB.ispitivanja.filter(i=>i.razredId===u?.razredId && new Date(i.datum)>=new Date(todayISO())).sort((a,b)=>a.datum.localeCompare(b.datum)).slice(0,5); return nadIspiti.length?`<div class="mt-6"><h3 class="font-bold text-lg mb-3">📅 Nadolazeći ispiti</h3><div class="grid md:grid-cols-2 gap-3">${nadIspiti.map(isp=>{const dl=Math.ceil((new Date(isp.datum)-new Date(todayISO()))/(1000*60*60*24));return `<div class="bg-white border rounded-lg p-3 ispitivanje-${isp.tip}"><div class="flex justify-between"><b>${isp.predmet} - ${isp.tip}</b><span class="badge ${dl<=1?'bg-red-100 text-red-700':dl<=3?'bg-yellow-100 text-yellow-700':'bg-green-100 text-green-700'}">${dl===0?'DANAS':dl+' d'}</span></div><div class="text-sm text-gray-600 mt-1">${isp.naslov} • ${fmtDate(isp.datum)} u ${isp.vrijeme}</div></div>`}).join('')}</div></div>`:''})()}`;
+};
+
+// =========================== UČENIK: materijali ===========================
+RENDERERS.mojimaterijali = function(c) {
+  const u = DB.ucenici.find(x=>x.id===currentUser.ucenikId);
+  const list = DB.materijali.filter(m=>m.razredId===u?.razredId).sort((a,b)=>b.datum.localeCompare(a.datum));
+  c.innerHTML = `<h2 class="text-3xl font-bold mb-6">Nastavni materijali</h2>
+    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+      ${list.length ? list.map(m=>`<div class="bg-white border rounded-xl p-5 hover:shadow-lg transition">
+        <div class="bg-blue-100 text-blue-700 w-10 h-10 rounded-lg flex items-center justify-center mb-2">📄</div>
+        <h3 class="font-bold">${m.naziv}</h3>
+        <p class="text-xs text-gray-500 mb-2">${m.predmet} • ${fmtDate(m.datum)}</p>
+        <p class="text-sm text-gray-700 whitespace-pre-wrap">${m.opis||''}</p>
+        ${m.url?`<a href="${m.url}" target="_blank" class="text-blue-600 hover:underline text-sm mt-3 inline-block">📎 Otvori link</a>`:''}
+      </div>`).join('') : '<div class="empty-state col-span-3">Nema materijala</div>'}
+    </div>`;
+};
+
+// =========================== UČENIK: domaći ===========================
+RENDERERS.mojidomaci = function(c) {
+  const u = DB.ucenici.find(x=>x.id===currentUser.ucenikId);
+  const list = DB.domaci.filter(d=>d.razredId===u?.razredId).sort((a,b)=>a.rok.localeCompare(b.rok));
+  c.innerHTML = `<h2 class="text-3xl font-bold mb-6">Moje zadaće</h2>
+    <div class="grid md:grid-cols-2 gap-4">
+      ${list.length ? list.map(d=>{
+        const daysLeft = Math.ceil((new Date(d.rok)-new Date())/(1000*60*60*24));
+        const passed = daysLeft < 0;
+        return `<div class="bg-white border rounded-xl p-5 ${passed?'opacity-50':''}">
+          <div class="flex justify-between items-start mb-2">
+            <h3 class="font-bold">${d.naslov}</h3>
+            <span class="badge ${passed?'bg-gray-100 text-gray-600':daysLeft<=1?'bg-red-100 text-red-700':daysLeft<=3?'bg-yellow-100 text-yellow-700':'bg-green-100 text-green-700'}">${passed?'isteklo':daysLeft===0?'DANAS!':daysLeft+' dana'}</span>
+          </div>
+          <p class="text-xs text-gray-500 mb-2">${d.predmet}</p>
+          <p class="text-sm text-gray-700 whitespace-pre-wrap mb-2">${d.opis||''}</p>
+          <p class="text-xs text-gray-500">Rok: <b>${fmtDate(d.rok)}</b></p>
+        </div>`;
+      }).join('') : '<div class="empty-state col-span-2">Nema aktivnih zadaća</div>'}
+    </div>`;
+};
+
+// =========================== IZVJEŠTAJI ===========================
+RENDERERS.izvjestaji = function(c) {
+  c.innerHTML = `<h2 class="text-3xl font-bold mb-6">Izvještaji i statistika</h2>
+    <div class="grid md:grid-cols-2 gap-6 mb-6">
+      <div class="bg-white border rounded-xl p-6">
+        <h3 class="font-bold text-lg mb-4">📊 Prosjek po razredima</h3>
+        <canvas id="chartRazredi" height="200"></canvas>
+      </div>
+      <div class="bg-white border rounded-xl p-6">
+        <h3 class="font-bold text-lg mb-4">📈 Distribucija ocjena</h3>
+        <canvas id="chartOcjene" height="200"></canvas>
+      </div>
+    </div>
+    <div class="grid md:grid-cols-2 gap-6">
+      <div class="bg-white border rounded-xl p-6">
+        <h3 class="font-bold text-lg mb-4">🏆 Top 5 učenika</h3>
+        <ol class="space-y-2">
+          ${DB.ucenici.map(u=>({u, avg: parseFloat(avgOcjena(DB.ocjene.filter(o=>o.ucenikId===u.id&&!o.zamjenjeno&&!o.zakljucna)))||0})).sort((a,b)=>b.avg-a.avg).slice(0,5).map((x,i)=>`
+            <li class="flex justify-between items-center p-3 rounded-lg bg-gradient-to-r ${i===0?'from-yellow-50 to-yellow-100':i===1?'from-gray-50 to-gray-100':i===2?'from-orange-50 to-orange-100':'from-white to-white'} border">
+              <span class="flex items-center gap-3"><span class="text-2xl">${i===0?'🥇':i===1?'🥈':i===2?'🥉':'🎓'}</span><span><b>${x.u.prezime} ${x.u.ime}</b><div class="text-xs text-gray-500">${getRazredName(x.u.razredId)}</div></span></span>
+              <b class="text-2xl text-green-700">${x.avg.toFixed(2)}</b>
+            </li>`).join('') || '<li class="text-gray-400">Nema podataka</li>'}
+        </ol>
+      </div>
+      <div class="bg-white border rounded-xl p-6">
+        <h3 class="font-bold text-lg mb-4">📚 Prosjek po predmetima</h3>
+        <div class="space-y-2">
+          ${DB.predmeti.map(p=>{
+            const oc = DB.ocjene.filter(o=>o.predmet===p&&!o.zamjenjeno&&!o.zakljucna);
+            if (!oc.length) return '';
+            const avg = parseFloat(avgOcjena(oc))||0;
+            return `<div><div class="flex justify-between text-sm mb-1"><span>${p}</span><b>${avg.toFixed(2)}</b></div>
+              <div class="w-full bg-gray-200 rounded-full h-2"><div class="h-2 rounded-full ${avg>=4?'bg-green-500':avg>=3?'bg-blue-500':avg>=2?'bg-yellow-500':'bg-red-500'}" style="width:${(avg/5)*100}%"></div></div></div>`;
           }).join('')}
         </div>
-        <button type="submit" class="primary" style="margin-top:16px; width:100%;">Spremi sve</button>
-      </form>
-    `;
-
-    showModal('Evidencija časa', html);
-
-    document.querySelectorAll('.btnJustify').forEach(btn => {
-      btn.onclick = async () => {
-        const sid = btn.dataset.sid;
-        const attId = attMap[sid]?.id;
-        if (attId) {
-          await db.ref(`attendance/${attId}`).update({ status: 'justified', justifiedBy: currentUser.id });
-          hideModal(); openLessonModal(schId);
-        }
-      };
+      </div>
+    </div>`;
+  // crtaj grafove
+  setTimeout(()=>{
+    const ctx1 = document.getElementById('chartRazredi');
+    if (ctx1) new Chart(ctx1, {
+      type: 'bar',
+      data: { labels: DB.razredi.map(r=>r.naziv), datasets: [{ label: 'Prosjek', data: DB.razredi.map(r=>{
+        const oc = DB.ocjene.filter(o=>{ const u=DB.ucenici.find(x=>x.id===o.ucenikId); return u?.razredId===r.id && !o.zamjenjeno && !o.zakljucna; });
+        return parseFloat(avgOcjena(oc))||0;
+      }), backgroundColor: '#1e40af', borderRadius: 6 }]},
+      options: { responsive: true, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,max:5}} }
     });
+    const ctx2 = document.getElementById('chartOcjene');
+    if (ctx2) new Chart(ctx2, {
+      type: 'doughnut',
+      data: { labels: ['1','2','3','4','5'], datasets: [{ data: [1,2,3,4,5].map(v=>DB.ocjene.filter(o=>o.vrijednost===v&&!o.zamjenjeno).length), backgroundColor: ['#fecaca','#fed7aa','#fef08a','#bbf7d0','#86efac'] }]},
+      options: { responsive: true }
+    });
+  }, 50);
+};
 
-    document.getElementById('lessonForm').onsubmit = async e => {
-      e.preventDefault();
-      const updates = {};
-      const note = document.getElementById('lessonNote').value.trim();
-      
-      // Spremi log
-      if (note) {
-        if (log) updates[`lessonLogs/${log.id}/note`] = note;
-        else {
-          const lid = db.ref('lessonLogs').push().key;
-          updates[`lessonLogs/${lid}`] = { scheduleId: schId, date: new Date().toISOString(), note };
-        }
-      }
+// =========================== ISPITIVANJA (NAJAVE) ===========================
+RENDERERS.ispitivanja = function(c) {
+  const filter = document.getElementById('ispFilter')?.value || 'svi';
+  let list = DB.ispitivanja;
+  if (currentUser.role==='nastavnik') {
+    // nastavnik vidi samo svoje + sve za razrede koje predaje
+    const mojiRazredi = [...new Set((currentUser.zaduzenja||[]).flatMap(z=>z.razrediIds))];
+    list = list.filter(i=>i.nastavnikId===currentUser.id || mojiRazredi.includes(i.razredId));
+  }
+  if (filter==='aktivni') list = list.filter(i=>new Date(i.datum) >= new Date(todayISO()));
+  else if (filter==='prosli') list = list.filter(i=>new Date(i.datum) < new Date(todayISO()));
+  list = list.sort((a,b)=>a.datum.localeCompare(b.datum));
+  c.innerHTML = `
+    <div class="flex justify-between items-center mb-6">
+      <h2 class="text-3xl font-bold">Najave ispitivanja</h2>
+      ${currentUser.role!=='admin'?`<button onclick="openIspitModal()" class="btn-primary px-4 py-2 rounded-lg font-semibold">+ Najava ispita</button>`:''}
+    </div>
+    <div class="mb-4 flex gap-3">
+      <select id="ispFilter" onchange="navigate('ispitivanja')" class="px-4 py-2 border rounded-lg">
+        <option value="svi" ${filter==='svi'?'selected':''}>Svi ispiti</option>
+        <option value="aktivni" ${filter==='aktivni'?'selected':''}>Aktualni i nadolazeći</option>
+        <option value="prosli" ${filter==='prosli'?'selected':''}>Prošli</option>
+      </select>
+    </div>
+    <div class="grid md:grid-cols-2 gap-4">
+      ${list.length ? list.map(isp=>{
+        const daysLeft = Math.ceil((new Date(isp.datum)-new Date(todayISO()))/(1000*60*60*24));
+        const passed = daysLeft<0;
+        return `<div class="bg-white border rounded-xl p-5 ispitivanje-card ispitivanje-${isp.tip} ${passed?'opacity-60':''}">
+          <div class="flex justify-between items-start mb-2">
+            <div>
+              <h3 class="font-bold text-lg">${isp.naslov}</h3>
+              <p class="text-sm text-gray-600">${isp.predmet} • ${getRazredName(isp.razredId)}</p>
+            </div>
+            <span class="badge ${isp.tip==='pismeno'?'bg-red-100 text-red-700':isp.tip==='usmeno'?'bg-orange-100 text-orange-700':isp.tip==='kontrolni'?'bg-yellow-100 text-yellow-700':'bg-blue-100 text-blue-700'}">${isp.tip.toUpperCase()}</span>
+          </div>
+          <div class="flex items-center gap-4 text-sm mb-2">
+            <span>📅 <b>${fmtDate(isp.datum)}</b></span>
+            ${isp.vrijeme?`<span>🕐 ${isp.vrijeme}</span>`:''}
+            <span class="ml-auto badge ${passed?'bg-gray-100 text-gray-600':daysLeft<=1?'bg-red-100 text-red-700':daysLeft<=3?'bg-yellow-100 text-yellow-700':'bg-green-100 text-green-700'}">${passed?'prošlo':daysLeft===0?'DANAS!':daysLeft+' dana'}</span>
+          </div>
+          ${isp.opis?`<p class="text-sm text-gray-700 mb-2 whitespace-pre-wrap">${isp.opis}</p>`:''}
+          <div class="flex justify-between items-center text-xs text-gray-500 pt-2 border-t mt-2">
+            <span>Nastavnik: ${getNastavnikName(isp.nastavnikId)}</span>
+            ${(currentUser.role==='nastavnik' && isp.nastavnikId===currentUser.id) ? `<div>
+              <button onclick="openIspitModal(${isp.id})" class="text-blue-600 hover:underline mr-2">Uredi</button>
+              <button onclick="obrisiIspit(${isp.id})" class="text-red-600 hover:underline">Obriši</button>
+            </div>`:''}
+          </div>
+        </div>`;
+      }).join('') : '<div class="empty-state col-span-2">Nema najavljenih ispitivanja</div>'}
+    </div>`;
+};
 
-      students.forEach(st => {
-        const sid = st.id;
-        const pres = document.querySelector(`.chkPres[data-sid="${sid}"]`).checked;
-        const gradeVal = document.querySelector(`.inpGrade[data-sid="${sid}"]`).value;
-        const type = document.querySelector(`.selType[data-sid="${sid}"]`).value;
-        const desc = document.querySelector(`.inpDesc[data-sid="${sid}"]`).value;
-
-        let att = attMap[sid];
-        if (!att) {
-          const aid = db.ref('attendance').push().key;
-          updates[`attendance/${aid}`] = { scheduleId: schId, studentId: sid, status: pres ? 'present' : 'absent' };
-        } else {
-          let newStatus = pres ? 'present' : 'absent';
-          if (att.status === 'justified' && !pres) newStatus = 'justified';
-          updates[`attendance/${att.id}/status`] = newStatus;
-        }
-
-        if (gradeVal) {
-          const gid = db.ref('grades').push().key;
-          updates[`grades/${gid}`] = { scheduleId: schId, studentId: sid, grade: parseFloat(gradeVal), type, desc, date: new Date().toISOString() };
-        }
-      });
-
-      await db.ref().update(updates);
-      hideModal();
-      alert('Spremljeno!');
-    };
+function openIspitModal(id) {
+  const ex = id ? DB.ispitivanja.find(x=>x.id===id) : { razredId: 0, predmet: '', tip: 'pismeno', naslov: '', datum: todayISO(), vrijeme: '08:00', opis: '' };
+  const zad = currentUser.zaduzenja || [];
+  const dostupniPredmeti = zad.length ? [...new Set(zad.map(z=>z.predmet))] : (currentUser.predmeti||DB.predmeti);
+  showModal(`<h3 class="text-xl font-bold mb-4">${id?'Uredi':'Nova'} najava ispita</h3>
+    <form id="isf" class="space-y-3">
+      <div><label class="text-sm font-medium block mb-1">Naslov *</label><input name="naslov" value="${ex.naslov}" required class="w-full px-3 py-2 border rounded-lg" placeholder="npr. Pismeni iz brojeva do 1000"></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="text-sm font-medium block mb-1">Predmet *</label>
+          <select name="predmet" id="ispPredmet" onchange="filterRazrediIsp()" class="w-full px-3 py-2 border rounded-lg">
+            ${dostupniPredmeti.map(p=>`<option ${p===ex.predmet?'selected':''}>${p}</option>`).join('')}
+          </select>
+        </div>
+        <div><label class="text-sm font-medium block mb-1">Razred *</label>
+          <select name="razredId" id="ispRazred" class="w-full px-3 py-2 border rounded-lg">
+            ${DB.razredi.map(r=>`<option value="${r.id}" ${r.id===ex.razredId?'selected':''}>${r.naziv}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div><label class="text-sm font-medium block mb-1">Tip ispitivanja *</label>
+        <select name="tip" class="w-full px-3 py-2 border rounded-lg">
+          <option value="pismeno" ${ex.tip==='pismeno'?'selected':''}>📝 Pismeno</option>
+          <option value="usmeno" ${ex.tip==='usmeno'?'selected':''}>🗣 Usmeno</option>
+          <option value="kontrolni" ${ex.tip==='kontrolni'?'selected':''}>📋 Kontrolni</option>
+          <option value="test" ${ex.tip==='test'?'selected':''}>✅ Test</option>
+        </select>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="text-sm font-medium block mb-1">Datum *</label><input name="datum" type="date" value="${ex.datum}" required class="w-full px-3 py-2 border rounded-lg"></div>
+        <div><label class="text-sm font-medium block mb-1">Vrijeme</label><input name="vrijeme" type="time" value="${ex.vrijeme||'08:00'}" class="w-full px-3 py-2 border rounded-lg"></div>
+      </div>
+      <div><label class="text-sm font-medium block mb-1">Šta će se ispitivati</label><textarea name="opis" class="w-full px-3 py-2 border rounded-lg h-24">${ex.opis||''}</textarea></div>
+      <div class="flex justify-end gap-2 pt-4 border-t">
+        <button type="button" onclick="closeModal()" class="btn-secondary px-4 py-2 rounded-lg">Otkaži</button>
+        <button type="submit" class="btn-primary px-4 py-2 rounded-lg">Sačuvaj i obavijesti</button>
+      </div>
+    </form>`);
+  filterRazrediIsp();
+  document.getElementById('isf').onsubmit = e => {
+    e.preventDefault();
+    const d = Object.fromEntries(new FormData(e.target));
+    d.razredId = +d.razredId;
+    if (id) Object.assign(ex, d);
+    else DB.ispitivanja.push({ id: Date.now(), nastavnikId: currentUser.id, ...d });
+    // obavijesti učenike u razredu
+    const tipName = {pismeno:'Pismeni',usmeno:'Usmeni',kontrolni:'Kontrolni',test:'Test'}[d.tip];
+    const ucenici = DB.ucenici.filter(u=>u.razredId===d.razredId);
+    ucenici.forEach(u=>{
+      const usr = DB.users.find(x=>x.ucenikId===u.id);
+      if (usr) DB.obavijesti.push({ id: Date.now()+Math.random(), naslov: `📢 ${tipName} - ${d.predmet}`, tekst: `${d.naslov} (${fmtDate(d.datum)} u ${d.vrijeme})`, datum: todayISO(), za: null, zaId: usr.id });
+    });
+    // obavijesti i nastavnike u razredu
+    DB.users.filter(usr=>usr.role==='nastavnik' && (usr.zaduzenja||[]).some(z=>z.razrediIds.includes(d.razredId))).forEach(usr=>{
+      if (usr.id !== currentUser.id) DB.obavijesti.push({ id: Date.now()+Math.random(), naslov: `Najava ispita: ${d.predmet}`, tekst: `${getRazredName(d.razredId)} - ${d.naslov} (${fmtDate(d.datum)})`, datum: todayISO(), za: null, zaId: usr.id });
+    });
+    saveData(); closeModal(); navigate('ispitivanja'); showNotification('Ispit najavljen i obavješten!');
   };
+}
+function filterRazrediIsp() {
+  if (!currentUser.zaduzenja) return;
+  const p = document.getElementById('ispPredmet').value;
+  const zad = currentUser.zaduzenja.find(z=>z.predmet===p);
+  const sel = document.getElementById('ispRazred');
+  if (zad && zad.razrediIds.length) {
+    const cur = sel.value;
+    sel.innerHTML = DB.razredi.filter(r=>zad.razrediIds.includes(r.id)).map(r=>`<option value="${r.id}" ${r.id==cur?'selected':''}>${r.naziv}</option>`).join('');
+  }
+}
+function obrisiIspit(id) {
+  if (!confirm('Obrisati najavu?')) return;
+  DB.ispitivanja = DB.ispitivanja.filter(x=>x.id!==id);
+  saveData(); navigate('ispitivanja');
+}
 
-  // --- Teacher: Announcements ---
-  function renderTeacherAnnouncements(main) {
-    const myClasses = currentUser.classes || [];
-    const myAnns = appData.announcements.filter(a => myClasses.includes(a.classId));
-    
-    main.innerHTML = `
-      <h3>Obavijesti, Zadaće i Ispiti</h3>
-      <div class="card">
-        <form id="addAnnFrm">
-          <label>Vrsta</label>
-          <select id="annType" required>
-            <option value="homework">Domaća zadaća</option>
-            <option value="test">Najava ispita</option>
-            <option value="reminder">Podsjetnik</option>
-          </select>
-          <label>Razred</label>
-          <select id="annClass" required>
-            ${myClasses.map(c => `<option value="${c}">${c}</option>`).join('')}
-          </select>
-          <label>Naslov</label>
-          <input id="annTitle" placeholder="Npr. Ispit iz Matematike" required>
-          <label>Opis</label>
-          <textarea id="annDesc" placeholder="Detalji..." required></textarea>
-          <label>Rok (Datum)</label>
-          <input type="date" id="annDue" required>
-          <button class="primary">Objavi</button>
+// UČENIK: moji ispiti
+RENDERERS.mojiispiti = function(c) {
+  const u = DB.ucenici.find(x=>x.id===currentUser.ucenikId);
+  if (!u) { c.innerHTML='<div class="empty-state">Nema povezanog učenika</div>'; return; }
+  const list = DB.ispitivanja.filter(i=>i.razredId===u.razredId && new Date(i.datum)>=new Date(todayISO())).sort((a,b)=>a.datum.localeCompare(b.datum));
+  const proslo = DB.ispitivanja.filter(i=>i.razredId===u.razredId && new Date(i.datum)<new Date(todayISO())).sort((a,b)=>b.datum.localeCompare(a.datum));
+  c.innerHTML = `<h2 class="text-3xl font-bold mb-6">Najave ispita</h2>
+    <h3 class="font-bold text-lg mb-3 text-blue-700">📅 Nadolazeći ispiti (${list.length})</h3>
+    <div class="grid md:grid-cols-2 gap-4 mb-8">
+      ${list.length ? list.map(isp=>{
+        const daysLeft = Math.ceil((new Date(isp.datum)-new Date(todayISO()))/(1000*60*60*24));
+        return `<div class="bg-white border rounded-xl p-5 ispitivanje-card ispitivanje-${isp.tip}">
+          <div class="flex justify-between items-start mb-2">
+            <div><h3 class="font-bold">${isp.naslov}</h3><p class="text-sm text-gray-600">${isp.predmet}</p></div>
+            <span class="badge ${isp.tip==='pismeno'?'bg-red-100 text-red-700':isp.tip==='usmeno'?'bg-orange-100 text-orange-700':isp.tip==='kontrolni'?'bg-yellow-100 text-yellow-700':'bg-blue-100 text-blue-700'}">${isp.tip.toUpperCase()}</span>
+          </div>
+          <div class="flex items-center gap-4 text-sm mb-2">
+            <span>📅 <b>${fmtDate(isp.datum)}</b></span>
+            <span>🕐 ${isp.vrijeme}</span>
+            <span class="ml-auto badge ${daysLeft<=1?'bg-red-100 text-red-700':daysLeft<=3?'bg-yellow-100 text-yellow-700':'bg-green-100 text-green-700'}">${daysLeft===0?'DANAS!':daysLeft+' dana'}</span>
+          </div>
+          ${isp.opis?`<p class="text-sm text-gray-700 mt-2 pt-2 border-t whitespace-pre-wrap">${isp.opis}</p>`:''}
+          <p class="text-xs text-gray-500 mt-2">Nastavnik: ${getNastavnikName(isp.nastavnikId)}</p>
+        </div>`;
+      }).join('') : '<div class="empty-state col-span-2">Nema najavljenih ispita</div>'}
+    </div>
+    ${proslo.length ? `<h3 class="font-bold text-lg mb-3 text-gray-600">📜 Prošli ispiti</h3>
+    <div class="grid md:grid-cols-3 gap-3">
+      ${proslo.slice(0,6).map(isp=>`<div class="bg-gray-50 border rounded-lg p-3 opacity-75">
+        <div class="font-semibold text-sm">${isp.naslov}</div>
+        <div class="text-xs text-gray-500">${isp.predmet} • ${fmtDate(isp.datum)}</div>
+      </div>`).join('')}
+    </div>`:''}`;
+};
+
+// =========================== REDARI ===========================
+RENDERERS.redari = function(c) {
+  // Samo razrednik može dodjeljivati redare svom razredu
+  const mojiRazredi = currentUser.razrednikRazredId ? [currentUser.razrednikRazredId] : [];
+  if (!mojiRazredi.length) {
+    c.innerHTML = `<h2 class="text-3xl font-bold mb-6">Redari</h2>
+      <div class="bg-yellow-50 border border-yellow-300 rounded-xl p-6">
+        <p class="text-yellow-800">⚠ Samo razrednik može dodjeljivati redare. Vi niste razrednik nijednog razreda.</p>
+      </div>
+      <h3 class="font-bold mt-6 mb-3">Svi aktualni redari u školi:</h3>
+      ${renderAktivnirRedari()}`;
+    return;
+  }
+  const razredId = mojiRazredi[0];
+  const aktivni = DB.redari.filter(r=>r.razredId===razredId && new Date(r.datumDo)>=new Date(todayISO())).sort((a,b)=>a.datumOd.localeCompare(b.datumOd));
+  const arhiva = DB.redari.filter(r=>r.razredId===razredId && new Date(r.datumDo)<new Date(todayISO())).sort((a,b)=>b.datumOd.localeCompare(a.datumOd)).slice(0,5);
+  c.innerHTML = `
+    <div class="flex justify-between items-center mb-6">
+      <div>
+        <h2 class="text-3xl font-bold">Redari</h2>
+        <p class="text-gray-500 mt-1">Razrednik razreda <b>${getRazredName(razredId)}</b></p>
+      </div>
+      <button onclick="openRedarModal()" class="btn-primary px-4 py-2 rounded-lg font-semibold">+ Dodijeli redare</button>
+    </div>
+    <h3 class="font-bold text-lg mb-3 text-blue-700">🛡 Trenutno aktivni redari</h3>
+    <div class="grid md:grid-cols-2 gap-4 mb-6">
+      ${aktivni.length ? aktivni.map(r=>{
+        const ucenici = r.ucenikIds.map(id=>DB.ucenici.find(u=>u.id===id)).filter(Boolean);
+        const danas = new Date(todayISO()) >= new Date(r.datumOd) && new Date(todayISO()) <= new Date(r.datumDo);
+        return `<div class="bg-gradient-to-br from-yellow-50 to-orange-50 border-2 ${danas?'border-yellow-400':'border-gray-200'} rounded-xl p-5">
+          <div class="flex justify-between items-start mb-3">
+            <span class="redar-badge">🛡 REDARI</span>
+            <button onclick="obrisiRedare(${r.id})" class="text-red-500 hover:bg-red-50 w-7 h-7 rounded">×</button>
+          </div>
+          <div class="space-y-1 mb-3">
+            ${ucenici.map(u=>`<div class="flex items-center gap-2"><span class="w-7 h-7 bg-yellow-400 text-white rounded-full flex items-center justify-center font-bold text-xs">${u.ime[0]}${u.prezime[0]}</span><b>${u.prezime} ${u.ime}</b></div>`).join('')}
+          </div>
+          <div class="text-xs text-gray-600 pt-2 border-t">📅 ${fmtDate(r.datumOd)} - ${fmtDate(r.datumDo)} ${danas?'<span class="badge bg-green-100 text-green-700 ml-2">AKTIVNO</span>':''}</div>
+        </div>`;
+      }).join('') : '<div class="empty-state col-span-2">Nema aktivnih redara</div>'}
+    </div>
+    ${arhiva.length?`<h3 class="font-bold text-lg mb-3 text-gray-600">📜 Arhiva</h3>
+    <div class="bg-white border rounded-xl overflow-hidden">
+      <table>
+        <thead><tr><th>Period</th><th style="text-align:left">Učenici</th></tr></thead>
+        <tbody>${arhiva.map(r=>`<tr><td>${fmtDate(r.datumOd)} - ${fmtDate(r.datumDo)}</td><td style="text-align:left">${r.ucenikIds.map(id=>{const u=DB.ucenici.find(x=>x.id===id);return u?u.prezime+' '+u.ime:''}).join(', ')}</td></tr>`).join('')}</tbody>
+      </table>
+    </div>`:''}`;
+};
+function renderAktivnirRedari() {
+  const aktivni = DB.redari.filter(r=>new Date(r.datumDo)>=new Date(todayISO())).sort((a,b)=>a.datumOd.localeCompare(b.datumOd));
+  if (!aktivni.length) return '<div class="empty-state">Nema aktivnih redara</div>';
+  return `<div class="grid md:grid-cols-2 gap-3">${aktivni.map(r=>{
+    const ucenici = r.ucenikIds.map(id=>DB.ucenici.find(u=>u.id===id)).filter(Boolean);
+    return `<div class="bg-white border rounded-lg p-3">
+      <div class="flex justify-between text-sm mb-1"><b>${getRazredName(r.razredId)}</b><span class="text-xs text-gray-500">${fmtDate(r.datumOd)} - ${fmtDate(r.datumDo)}</span></div>
+      <div class="text-sm">${ucenici.map(u=>u.prezime+' '+u.ime).join(', ')}</div>
+    </div>`;
+  }).join('')}</div>`;
+}
+function openRedarModal() {
+  const razredId = currentUser.razrednikRazredId;
+  const ucenici = DB.ucenici.filter(u=>u.razredId===razredId);
+  // sljedeći ponedjeljak
+  const today = new Date();
+  const dow = today.getDay();
+  const daysToMon = (8 - dow) % 7 || 7;
+  const mon = new Date(today); mon.setDate(today.getDate()+daysToMon);
+  const fri = new Date(mon); fri.setDate(mon.getDate()+4);
+  const monStr = mon.toISOString().split('T')[0];
+  const friStr = fri.toISOString().split('T')[0];
+  showModal(`<h3 class="text-xl font-bold mb-4">Dodijeli redare</h3>
+    <form id="redf" class="space-y-3">
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="text-sm font-medium block mb-1">Od *</label><input name="datumOd" type="date" value="${monStr}" required class="w-full px-3 py-2 border rounded-lg"></div>
+        <div><label class="text-sm font-medium block mb-1">Do *</label><input name="datumDo" type="date" value="${friStr}" required class="w-full px-3 py-2 border rounded-lg"></div>
+      </div>
+      <div><label class="text-sm font-medium block mb-2">Odaberi učenike (obično 2)</label>
+        <div class="max-h-64 overflow-y-auto border rounded-lg p-2 space-y-1">
+          ${ucenici.map(u=>`<label class="flex items-center gap-2 p-2 hover:bg-gray-50 cursor-pointer rounded"><input type="checkbox" name="ucenikId" value="${u.id}" class="w-4 h-4"><span>${u.prezime} ${u.ime}</span></label>`).join('')}
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-4 border-t">
+        <button type="button" onclick="closeModal()" class="btn-secondary px-4 py-2 rounded-lg">Otkaži</button>
+        <button type="submit" class="btn-primary px-4 py-2 rounded-lg">Dodijeli</button>
+      </div>
+    </form>`);
+  document.getElementById('redf').onsubmit = e => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const ucenikIds = fd.getAll('ucenikId').map(Number);
+    if (!ucenikIds.length) { showNotification('Odaberite barem jednog učenika','error'); return; }
+    const rec = { id: Date.now(), razredId, ucenikIds, datumOd: fd.get('datumOd'), datumDo: fd.get('datumDo'), postavioId: currentUser.id };
+    DB.redari.push(rec);
+    // obavještenja učenicima
+    ucenikIds.forEach(uid=>{
+      const usr = DB.users.find(x=>x.ucenikId===uid);
+      if (usr) DB.obavijesti.push({ id: Date.now()+Math.random(), naslov: '🛡 Postavljeni ste za redara', tekst: `Period: ${fmtDate(rec.datumOd)} - ${fmtDate(rec.datumDo)}`, datum: todayISO(), za: null, zaId: usr.id });
+    });
+    saveData(); closeModal(); navigate('redari'); showNotification('Redari dodijeljeni!');
+  };
+}
+function obrisiRedare(id) {
+  if (!confirm('Obrisati?')) return;
+  DB.redari = DB.redari.filter(r=>r.id!==id);
+  saveData(); navigate('redari');
+}
+
+// =========================== PORUKE ===========================
+RENDERERS.poruke = function(c) {
+  const moje = DB.poruke.filter(p=>p.za===currentUser.id || p.od===currentUser.id).sort((a,b)=>b.datum.localeCompare(a.datum));
+  c.innerHTML = `<div class="flex justify-between mb-6">
+    <h2 class="text-3xl font-bold">Poruke</h2>
+    <button onclick="novaPoruka()" class="btn-primary px-4 py-2 rounded-lg font-semibold">+ Nova poruka</button>
+  </div>
+  <div class="space-y-3">
+    ${moje.length ? moje.map(p=>{
+      const odMe = p.od===currentUser.id;
+      return `<div class="bg-white border rounded-xl p-4 ${odMe?'border-l-4 border-l-blue-500':'border-l-4 border-l-green-500'}">
+        <div class="flex justify-between text-sm mb-2">
+          <div><b>${odMe?'Vi':DB.users.find(u=>u.id===p.od)?.name}</b> → <b>${odMe?DB.users.find(u=>u.id===p.za)?.name:'Vi'}</b></div>
+          <span class="text-gray-500 text-xs">${p.datum}</span>
+        </div>
+        <div class="text-gray-700">${p.tekst}</div>
+      </div>`;
+    }).join('') : '<div class="empty-state">Nema poruka</div>'}
+  </div>`;
+};
+function novaPoruka() {
+  showModal(`<h3 class="text-xl font-bold mb-4">Nova poruka</h3>
+    <form id="pf" class="space-y-3">
+      <div><label class="text-sm font-medium block mb-1">Za *</label>
+        <select name="za" required class="w-full px-3 py-2 border rounded-lg">${DB.users.filter(u=>u.id!==currentUser.id).map(u=>`<option value="${u.id}">${u.name} (${u.role})</option>`).join('')}</select>
+      </div>
+      <div><label class="text-sm font-medium block mb-1">Tekst *</label><textarea name="tekst" required class="w-full px-3 py-2 border rounded-lg h-32"></textarea></div>
+      <div class="flex justify-end gap-2 pt-4 border-t">
+        <button type="button" onclick="closeModal()" class="btn-secondary px-4 py-2 rounded-lg">Otkaži</button>
+        <button type="submit" class="btn-primary px-4 py-2 rounded-lg">Pošalji</button>
+      </div>
+    </form>`);
+  document.getElementById('pf').onsubmit = e => {
+    e.preventDefault();
+    const d = Object.fromEntries(new FormData(e.target));
+    DB.poruke.push({ id: Date.now(), od: currentUser.id, za: +d.za, tekst: d.tekst, datum: new Date().toLocaleString('sr-RS') });
+    DB.obavijesti.push({ id: Date.now()+1, naslov: 'Nova poruka od '+currentUser.name, tekst: d.tekst.slice(0,80)+(d.tekst.length>80?'...':''), datum: todayISO(), za: null, zaId: +d.za });
+    saveData(); closeModal(); navigate('poruke'); showNotification('Poruka poslana!');
+  };
+}
+
+// =========================== POSTAVKE ===========================
+RENDERERS.postavke = function(c) {
+  c.innerHTML = `<h2 class="text-3xl font-bold mb-6">Postavke</h2>
+    <div class="grid md:grid-cols-2 gap-6">
+      <div class="bg-white border rounded-xl p-6">
+        <h3 class="font-bold text-lg mb-4">👤 Profil</h3>
+        <form id="profForm" class="space-y-3">
+          <div><label class="text-sm font-medium block mb-1">Ime i prezime</label><input name="name" value="${currentUser.name}" class="w-full px-3 py-2 border rounded-lg"></div>
+          <div><label class="text-sm font-medium block mb-1">Email</label><input name="email" value="${currentUser.email||''}" class="w-full px-3 py-2 border rounded-lg"></div>
+          <div><label class="text-sm font-medium block mb-1">Nova lozinka</label><input name="password" type="text" value="${currentUser.password}" class="w-full px-3 py-2 border rounded-lg"></div>
+          <button type="submit" class="btn-primary px-4 py-2 rounded-lg w-full mt-3">Sačuvaj profil</button>
         </form>
       </div>
-      <div id="annList">
-        ${myAnns.length ? myAnns.map(a => `
-          <div class="announcement type-${a.type}">
-            <div class="ann-header">
-              <span class="ann-title">${a.title}</span>
-              <span class="badge ${a.type}">${a.type.toUpperCase()}</span>
-            </div>
-            <div style="margin-bottom:8px;">${a.description}</div>
-            <div class="ann-meta">
-              Rok: <span class="ann-deadline">${formatDate(a.dueDate)}</span>
-              <button class="danger sm" style="float:right" onclick="delAnn('${a.id}')">Izbriši</button>
-            </div>
-          </div>
-        `).join('') : '<p>Nema aktivnih obavijesti.</p>'}
+      ${currentUser.role==='admin'?`<div class="bg-white border rounded-xl p-6">
+        <h3 class="font-bold text-lg mb-4">🏫 Škola</h3>
+        <form id="skolaForm" class="space-y-3">
+          <div><label class="text-sm font-medium block mb-1">Naziv škole</label><input name="naziv" value="${DB.skola.naziv}" class="w-full px-3 py-2 border rounded-lg"></div>
+          <div><label class="text-sm font-medium block mb-1">Adresa</label><input name="adresa" value="${DB.skola.adresa}" class="w-full px-3 py-2 border rounded-lg"></div>
+          <div><label class="text-sm font-medium block mb-1">Školska godina</label><input name="godina" value="${DB.skola.godina}" class="w-full px-3 py-2 border rounded-lg"></div>
+          <button type="submit" class="btn-primary px-4 py-2 rounded-lg w-full mt-3">Sačuvaj</button>
+        </form>
       </div>
-    `;
-
-    document.getElementById('addAnnFrm').onsubmit = async e => {
-      e.preventDefault();
-      await db.ref('announcements').push({
-        type: document.getElementById('annType').value,
-        classId: document.getElementById('annClass').value,
-        title: document.getElementById('annTitle').value,
-        description: document.getElementById('annDesc').value,
-        dueDate: document.getElementById('annDue').value,
-        teacherId: currentUser.id,
-        createdAt: new Date().toISOString()
-      });
-      e.target.reset();
-    };
-  }
-  window.delAnn = async id => { if(confirm('Obrisati obavijest?')) await db.ref(`announcements/${id}`).remove(); };
-
-  function renderTeacherClasses(main) {
-    if (!currentUser.classes?.length) { main.innerHTML = '<h3>Nemate razrede</h3>'; return; }
-    main.innerHTML = '<h3>Vaši razredi</h3>';
-    currentUser.classes.forEach(cid => {
-      const cnt = appData.users.filter(u => u.role==='student' && u.class===cid).length;
-      main.innerHTML += `<div class="card"><h4>${cid}</h4><p>Učenika: ${cnt}</p></div>`;
-    });
-  }
-
-  // --- Student Views ---
-  function renderStudentTasks(main) {
-    const myAnns = appData.announcements.filter(a => a.classId === currentUser.class);
-    // Sortiraj po roku
-    myAnns.sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate));
-
-    main.innerHTML = `<h3>Zadaće i Ispiti</h3>
-      ${myAnns.length ? myAnns.map(a => {
-        const overdue = isOverdue(a.dueDate);
-        return `
-          <div class="announcement type-${a.type}">
-            <div class="ann-header">
-              <span class="ann-title">${a.title}</span>
-              <span class="badge ${a.type}">${a.type === 'homework' ? 'ZADAĆA' : a.type === 'test' ? 'ISPIT' : 'PODSJETNIK'}</span>
-            </div>
-            <div style="margin-bottom:8px;">${a.description}</div>
-            <div class="ann-meta">
-              Rok: <span class="ann-deadline ${overdue ? 'badge overdue' : ''}">${formatDate(a.dueDate)}</span>
-              ${overdue ? '<span style="color:var(--danger); font-size:0.8rem; margin-left:8px;">ISTEKLO!</span>' : ''}
-            </div>
-          </div>
-        `;
-      }).join('') : '<div class="card">Nema novih zadaća ni ispita!</div>'}
-    `;
-  }
-
-  function renderStudentGrades(main) {
-    const gs = appData.grades.filter(g => g.studentId === currentUser.id);
-    main.innerHTML = `<h3>Moje ocjene</h3>
-      ${gs.length ? `<table><thead><tr><th>Predmet</th><th>Ocjena</th><th>Tip</th><th>Opis</th><th>Datum</th></tr></thead><tbody>
-        ${gs.map(g => {
-          const s = appData.schedules.find(x=>x.id===g.scheduleId);
-          return `<tr>
-            <td>${s?.lessonName || '-'}</td>
-            <td><strong>${g.grade}</strong></td>
-            <td><span class="badge type">${g.type}</span></td>
-            <td>${g.desc || '-'}</td>
-            <td>${formatDate(g.date)}</td>
-          </tr>`;
-        }).join('')}
-      </tbody></table>` : '<div class="card">Nema ocjena.</div>'}
-    `;
-  }
-
-  function renderStudentDiary(main) {
-    // Prikaži logove za moj razred
-    const mySchedules = appData.schedules.filter(s => s.classId === currentUser.class);
-    const myLogs = appData.lessonLogs.filter(l => mySchedules.some(s => s.id === l.scheduleId));
-    // Sortiraj po datumu
-    myLogs.sort((a,b) => new Date(b.date) - new Date(a.date));
-
-    main.innerHTML = `<h3>Dnevnik rada</h3>
-      ${myLogs.length ? myLogs.map(l => {
-        const sch = appData.schedules.find(s => s.id === l.scheduleId);
-        return `
-          <div class="card">
-            <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-              <strong>${sch?.lessonName || 'Predmet'}</strong>
-              <span style="color:var(--muted); font-size:0.85rem;">${formatDate(l.date)}</span>
-            </div>
-            <div style="color:#cbd5e1;">${l.note}</div>
-          </div>
-        `;
-      }).join('') : '<div class="card">Nema zapisa u dnevniku.</div>'}
-    `;
-  }
-
-  function renderStudentAbs(main) {
-    const abs = appData.attendance.filter(a => a.studentId === currentUser.id && a.status !== 'present');
-    main.innerHTML = `<h3>Izostanci</h3>
-      ${abs.length ? `<table><thead><tr><th>Dan</th><th>Predmet</th><th>Status</th></tr></thead><tbody>
-        ${abs.map(a => {
-          const s = appData.schedules.find(x=>x.id===a.scheduleId);
-          const status = a.status === 'justified' 
-            ? '<span class="badge justified">Pravdano</span>' 
-            : '<span class="badge absent">Nepravdano</span>';
-          return `<tr><td>${s?.day}</td><td>${s?.lessonName}</td><td>${status}</td></tr>`;
-        }).join('')}
-      </tbody></table>` : '<div class="card">Nema izostanaka!</div>'}
-    `;
-  }
-
-  // Modal Utils
-  window.showModal = (title, html) => {
-    document.getElementById('modalTitle').textContent = title;
-    document.getElementById('modalBody').innerHTML = html;
-    document.getElementById('modalOverlay').style.display = 'flex';
+      <div class="bg-white border rounded-xl p-6 md:col-span-2">
+        <h3 class="font-bold text-lg mb-4 text-red-700">⚠ Sistem</h3>
+        <div class="flex gap-3 flex-wrap">
+          <button onclick="exportData()" class="btn-secondary px-4 py-2 rounded-lg">📥 Izvezi podatke (JSON)</button>
+          <button onclick="document.getElementById('importFile').click()" class="btn-secondary px-4 py-2 rounded-lg">📤 Uvezi podatke</button>
+          <input type="file" id="importFile" accept=".json" class="hidden" onchange="importData(this)">
+          <button onclick="if(confirm('Resetovati sve?')){localStorage.removeItem('edn_data_v3');location.reload();}" class="btn-danger px-4 py-2 rounded-lg">🗑 Resetuj sve</button>
+        </div>
+      </div>`:''}
+    </div>`;
+  document.getElementById('profForm').onsubmit = e => {
+    e.preventDefault();
+    const d = Object.fromEntries(new FormData(e.target));
+    Object.assign(currentUser, d);
+    const u = DB.users.find(x=>x.id===currentUser.id);
+    Object.assign(u, d);
+    saveData();
+    document.getElementById('userBadge').textContent = currentUser.name;
+    showNotification('Profil sačuvan!');
   };
-  window.hideModal = () => {
-    document.getElementById('modalOverlay').style.display = 'none';
-    document.getElementById('modalBody').innerHTML = '';
+  const sf = document.getElementById('skolaForm');
+  if (sf) sf.onsubmit = e => {
+    e.preventDefault();
+    Object.assign(DB.skola, Object.fromEntries(new FormData(e.target)));
+    saveData(); showNotification('Postavke škole sačuvane!');
   };
-  document.getElementById('modalOverlay').onclick = e => { if(e.target.id==='modalOverlay') hideModal(); };
+};
 
-  initApp();
+function exportData() {
+  const blob = new Blob([JSON.stringify(DB, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'edn-backup-'+todayISO()+'.json';
+  a.click();
+  showNotification('Backup preuzet!');
+}
+function importData(input) {
+  const file = input.files[0]; if (!file) return;
+  const r = new FileReader();
+  r.onload = e => {
+    try {
+      const d = JSON.parse(e.target.result);
+      if (confirm('Učitati podatke? Trenutni podaci će biti zamijenjeni.')) {
+        DB = d; saveData(); location.reload();
+      }
+    } catch(e) { showNotification('Greška pri učitavanju!', 'error'); }
+  };
+  r.readAsText(file);
+}
+
+// =========================== MODAL ===========================
+function showModal(html) {
+  document.getElementById('modalContainer').innerHTML = `
+    <div class="fixed inset-0 modal-bg flex items-center justify-center z-50 p-4" onclick="if(event.target===this)closeModal()">
+      <div class="modal-content bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[92vh] overflow-y-auto">${html}</div>
+    </div>`;
+}
+function closeModal() { document.getElementById('modalContainer').innerHTML = ''; }
+document.addEventListener('keydown', e => { if (e.key==='Escape') closeModal(); });
 </script>
 </body>
 </html>
