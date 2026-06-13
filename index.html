@@ -1178,7 +1178,8 @@ function prikaziDetaljeCasa(casId, datumZaDan) {
   const ispit = DB.ispitivanja.find(i=>i.razredId===cs.razredId && i.predmet===cs.predmet && i.datum===datumZaDan);
   const zadaca = DB.domaci.find(z=>z.razredId===cs.razredId && z.predmet===cs.predmet && z.rok===datumZaDan);
   const lekcijaDanas = DB.lekcije.find(l=>l.razredId===cs.razredId && l.predmet===cs.predmet && l.datum===datumZaDan);
-  const lekcije = DB.lekcije.filter(l=>l.razredId===cs.razredId && l.predmet===cs.predmet).sort((a,b)=>b.datum.localeCompare(a.datum)).slice(0,3);
+  // sve prošle lekcije osim ove današnje
+  const lekcije = DB.lekcije.filter(l=>l.razredId===cs.razredId && l.predmet===cs.predmet && l.datum!==datumZaDan).sort((a,b)=>b.datum.localeCompare(a.datum)).slice(0,5);
   const otkazan = (DB.otkazani||[]).find(o=>o.casId===casId && o.datum===datumZaDan);
   const zamjena = (DB.zamjene||[]).find(z=>z.casId===casId && z.datum===datumZaDan);
   const colorIdx = DB.predmeti.indexOf(cs.predmet) % 8;
@@ -1222,8 +1223,16 @@ function prikaziDetaljeCasa(casId, datumZaDan) {
     if (lekcijaDanas) html += '<div class="bg-green-50 border-l-4 border-green-500 p-3 rounded-lg mb-3"><div class="font-bold text-green-900">📖 Lekcija: '+escapeHtml(lekcijaDanas.naslov)+'</div>'+(lekcijaDanas.opis?'<p class="text-sm text-green-800 mt-1">'+escapeHtml(lekcijaDanas.opis)+'</p>':'')+'</div>';
   }
   if (lekcije.length && !otkazan) {
-    html += '<div class="mb-3"><div class="text-xs font-semibold text-gray-500 mb-1">📚 PROŠLE LEKCIJE</div>'+
-      lekcije.map(function(l){return '<div class="text-sm p-2 bg-blue-50 rounded mb-1"><b>'+escapeHtml(l.naslov)+'</b> <span class="text-xs text-gray-500">'+fmtDate(l.datum)+'</span></div>'}).join('')+
+    html += '<div class="mb-3"><div class="text-xs font-semibold text-gray-500 mb-1">📚 PROŠLE LEKCIJE ('+lekcije.length+')</div>'+
+      lekcije.map(function(l){
+        return '<div class="text-sm p-2 bg-blue-50 rounded mb-1 flex justify-between items-center gap-2">'+
+          '<div class="flex-1 min-w-0"><b>'+escapeHtml(l.naslov)+'</b>'+
+          (l.tip?' <span class="text-xs text-blue-700">('+escapeHtml(l.tip)+')</span>':'')+
+          (l.ostvarena===false?' <span class="badge bg-yellow-100 text-yellow-700 text-[10px]">⏳ planirano</span>':'')+
+          '</div>'+
+          '<span class="text-xs text-gray-500 flex-shrink-0">'+fmtDate(l.datum)+'</span>'+
+          '</div>';
+      }).join('')+
       '</div>';
   }
   
@@ -1633,7 +1642,43 @@ RENDERERS.dnevnik = function(c, state) {
     '<h3 class="font-bold text-blue-900 flex items-center gap-2"><svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>Lekcija za današnji čas</h3>'+
     '<button onclick="openLekcijaModal('+razredId+',\''+predmet+'\',\''+datum+'\')" class="btn-primary px-3 py-1.5 rounded-lg text-sm font-medium">'+(lekcija?'✎ Uredi':'+ Dodaj lekciju')+'</button>'+
     '</div>'+
-    (lekcija?'<div class="bg-white/60 rounded-lg p-3"><div class="font-bold text-gray-800 mb-1">'+escapeHtml(lekcija.naslov)+'</div><div class="text-sm text-gray-700 whitespace-pre-wrap">'+escapeHtml(lekcija.opis||'')+'</div></div>':'<div class="text-sm text-gray-500 italic p-3 bg-white/40 rounded-lg">Lekcija još nije dodana za ovaj čas. Klikni "+ Dodaj lekciju" da upišeš šta će se obrađivati.</div>')+
+    (lekcija?'<div class="bg-white/80 rounded-lg p-4 border border-blue-100">'+
+      '<div class="flex justify-between items-start mb-2 flex-wrap gap-2">'+
+      '<div class="font-bold text-gray-800 text-lg">'+escapeHtml(lekcija.naslov)+'</div>'+
+      '<div class="flex gap-1">'+
+      (lekcija.tip?'<span class="badge bg-blue-100 text-blue-700">'+escapeHtml(lekcija.tip)+'</span>':'')+
+      (lekcija.ostvarena!==false?'<span class="badge bg-green-100 text-green-700">✓ Ostvarena</span>':'<span class="badge bg-yellow-100 text-yellow-700">⏳ Planirano</span>')+
+      '</div></div>'+
+      (lekcija.opis?'<div class="text-sm text-gray-700 whitespace-pre-wrap">'+escapeHtml(lekcija.opis)+'</div>':'')+
+      '</div>'+
+      // PRIKAZ ZADNJIH 3 PROŠLIH LEKCIJA
+      (function(){
+        const prosle = DB.lekcije.filter(l=>l.razredId===razredId && l.predmet===predmet && l.datum!==datum).sort((a,b)=>b.datum.localeCompare(a.datum)).slice(0,3);
+        if (!prosle.length) return '';
+        return '<div class="mt-3 pt-3 border-t border-blue-200">'+
+          '<div class="text-xs font-semibold text-blue-900 mb-2">📚 PROŠLE LEKCIJE</div>'+
+          '<div class="space-y-1">'+prosle.map(function(l){
+            return '<div class="text-xs p-2 bg-white/50 rounded flex justify-between items-center gap-2">'+
+              '<div class="flex-1 min-w-0"><b>'+escapeHtml(l.naslov.substring(0,50))+(l.naslov.length>50?'...':'')+'</b> '+(l.tip?'<span class="text-blue-600">('+escapeHtml(l.tip)+')</span>':'')+'</div>'+
+              '<span class="text-gray-500 flex-shrink-0">'+fmtDate(l.datum)+'</span>'+
+              '</div>';
+          }).join('')+'</div></div>';
+      })()
+    :'<div class="text-sm text-gray-600 p-3 bg-white/40 rounded-lg">'+
+      '<p>Lekcija još nije dodana za ovaj čas.</p>'+
+      // Ako ima prošlih lekcija, prikaži ih kao prijedlog
+      (function(){
+        const prosle = DB.lekcije.filter(l=>l.razredId===razredId && l.predmet===predmet && l.datum!==datum).sort((a,b)=>b.datum.localeCompare(a.datum)).slice(0,3);
+        if (!prosle.length) return '<p class="text-xs italic mt-1">Klikni "+ Dodaj lekciju" da upišeš šta se obrađivati.</p>';
+        return '<div class="mt-3"><div class="text-xs font-semibold text-blue-900 mb-2">📚 ZADNJE 3 LEKCIJE (klikni za brzo kopiranje):</div>'+
+          '<div class="space-y-1">'+prosle.map(function(l){
+            return '<button onclick="brzoDodajLekciju('+razredId+',\''+escapeHtml(predmet).replace(/\x27/g,'%27')+'\',\''+datum+'\','+l.id+')" class="w-full text-left text-xs p-2 bg-white hover:bg-blue-50 border border-blue-200 rounded flex justify-between items-center gap-2 cursor-pointer">'+
+              '<div class="flex-1 min-w-0"><b>'+escapeHtml(l.naslov.substring(0,50))+(l.naslov.length>50?'...':'')+'</b> '+(l.tip?'<span class="text-blue-600">('+escapeHtml(l.tip)+')</span>':'')+'</div>'+
+              '<span class="text-gray-500 flex-shrink-0">'+fmtDate(l.datum)+' →</span>'+
+              '</button>';
+          }).join('')+'</div></div>';
+      })()
+    +'</div>')+
     '</div>'+
     // ISPITI/ZADAĆE (1/3 širine)
     '<div class="space-y-3">'+
@@ -1713,19 +1758,148 @@ function renderZakljucnaSamoPrikaz(ucenikId, predmet) {
 
 function openLekcijaModal(razredId, predmet, datum) {
   const ex = DB.lekcije.find(l=>l.razredId===razredId && l.predmet===predmet && l.datum===datum);
-  showModal('<h3 class="text-xl font-bold mb-4">'+(ex?'Uredi':'Dodaj')+' lekciju</h3>'+
+  // prošle lekcije iz istog predmeta i razreda (bez današnje)
+  const prosle = DB.lekcije.filter(l=>l.razredId===razredId && l.predmet===predmet && l.datum!==datum)
+    .sort((a,b)=>b.datum.localeCompare(a.datum));
+  // plan i program za ovaj predmet/razred
+  const ppKey = razredId+'_'+predmet;
+  const planProgram = (DB.planProgram && DB.planProgram[ppKey]) || [];
+  const tipovi = ['Obrada novog gradiva','Ponavljanje','Vježba','Provjera','Pismeni rad','Usmeno ispitivanje','Praktični rad'];
+  const exTip = ex && ex.tip ? ex.tip : 'Obrada novog gradiva';
+  
+  showModal('<h3 class="text-xl font-bold mb-1">'+(ex?'✎ Uredi lekciju':'➕ Dodaj lekciju')+'</h3>'+
+    '<p class="text-sm text-gray-500 mb-4">'+escapeHtml(predmet)+' • '+escapeHtml(getRazredName(razredId))+' • '+fmtDate(datum)+'</p>'+
+    
+    // BRZE AKCIJE - kopiraj iz prošle
+    (prosle.length ? '<div class="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4">'+
+      '<label class="text-xs font-bold text-blue-900 mb-2 block">⚡ BRZE AKCIJE</label>'+
+      '<div class="flex flex-wrap gap-2">'+
+      '<button type="button" onclick="kopirajIzProsle('+razredId+',\''+escapeHtml(predmet)+'\',\''+datum+'\',\'last\')" class="btn-secondary px-3 py-1.5 rounded text-sm flex items-center gap-1">📋 Kopiraj zadnju ('+escapeHtml(prosle[0].naslov.substring(0,30))+(prosle[0].naslov.length>30?'...':'')+')</button>'+
+      '<button type="button" onclick="kopirajIzProsle('+razredId+',\''+escapeHtml(predmet)+'\',\''+datum+'\',\'nastavak\')" class="btn-secondary px-3 py-1.5 rounded text-sm flex items-center gap-1">↪ Nastavak prošle</button>'+
+      '<button type="button" onclick="kopirajIzProsle('+razredId+',\''+escapeHtml(predmet)+'\',\''+datum+'\',\'ponavljanje\')" class="btn-secondary px-3 py-1.5 rounded text-sm flex items-center gap-1">🔄 Ponavljanje zadnje</button>'+
+      '</div></div>' : '')+
+    
     '<form id="lf" class="space-y-3">'+
-    '<div><label class="text-sm font-medium block mb-1">Naslov *</label><input name="naslov" value="'+escapeHtml(ex?ex.naslov:'')+'" required class="w-full px-3 py-2 border rounded-lg"></div>'+
-    '<div><label class="text-sm font-medium block mb-1">Opis</label><textarea name="opis" class="w-full px-3 py-2 border rounded-lg h-32">'+escapeHtml(ex?ex.opis:'')+'</textarea></div>'+
-    '<div class="flex justify-end gap-2 pt-4 border-t"><button type="button" onclick="closeModal()" class="btn-secondary px-4 py-2 rounded-lg">Otkaži</button><button type="submit" class="btn-primary px-4 py-2 rounded-lg">Sačuvaj</button></div>'+
+    
+    // ODABIR IZ PROŠLIH LEKCIJA (dropdown)
+    (prosle.length ? '<div><label class="text-sm font-medium block mb-1">📚 Odaberi iz prošlih lekcija (opcionalno)</label>'+
+      '<select id="proslaSelect" onchange="ucitajProslu(this.value, '+razredId+',\''+escapeHtml(predmet)+'\')" class="w-full px-3 py-2 border rounded-lg">'+
+      '<option value="">-- ili napiši novu ispod --</option>'+
+      prosle.slice(0,30).map(function(l){
+        return '<option value="'+l.id+'">'+fmtDate(l.datum)+' • '+escapeHtml(l.naslov.substring(0,60))+'</option>';
+      }).join('')+
+      '</select>'+
+      '<p class="text-xs text-gray-500 mt-1">💡 Klik kopira naslov i opis prošle lekcije u polja ispod (možeš urediti prije spremanja)</p>'+
+      '</div>' : '')+
+    
+    // IZ PLANA I PROGRAMA
+    (planProgram.length ? '<div><label class="text-sm font-medium block mb-1">📁 Iz plana i programa (opcionalno)</label>'+
+      '<select id="ppSelect" onchange="ucitajIzPP(this.value, \''+ppKey+'\')" class="w-full px-3 py-2 border rounded-lg">'+
+      '<option value="">-- odaberi nastavnu jedinicu --</option>'+
+      planProgram.map(function(p,i){
+        return '<option value="'+i+'">'+(p.ostvareno?'✓ ':'○ ')+escapeHtml(p.naziv)+'</option>';
+      }).join('')+
+      '</select></div>' : '')+
+    
+    // TIP ČASA
+    '<div><label class="text-sm font-medium block mb-1">Tip časa</label>'+
+    '<select name="tip" id="tipLekcije" class="w-full px-3 py-2 border rounded-lg">'+
+    tipovi.map(t=>'<option'+(t===exTip?' selected':'')+'>'+t+'</option>').join('')+
+    '</select></div>'+
+    
+    // NASLOV
+    '<div><label class="text-sm font-medium block mb-1">Naslov *</label>'+
+    '<input name="naslov" id="naslovInput" value="'+escapeHtml(ex?ex.naslov:'')+'" required class="w-full px-3 py-2 border rounded-lg" placeholder="npr. Sabiranje i oduzimanje do 100"></div>'+
+    
+    // OPIS
+    '<div><label class="text-sm font-medium block mb-1">Opis / sadržaj časa</label>'+
+    '<textarea name="opis" id="opisInput" class="w-full px-3 py-2 border rounded-lg h-32" placeholder="Šta će se obrađivati...">'+escapeHtml(ex?(ex.opis||''):'')+'</textarea></div>'+
+    
+    // OZNAKA - ostvarena/aktivnost
+    '<label class="flex items-center gap-2 p-2 bg-gray-50 rounded cursor-pointer">'+
+    '<input type="checkbox" name="ostvarena" '+(ex&&ex.ostvarena!==false?'checked':(!ex?'checked':''))+' class="w-4 h-4">'+
+    '<span class="text-sm">✓ Lekcija je ostvarena (predavanje održano)</span></label>'+
+    
+    '<div class="flex justify-between gap-2 pt-4 border-t">'+
+    (ex?'<button type="button" onclick="obrisiLekciju('+ex.id+')" class="btn-danger px-3 py-2 rounded-lg text-sm">🗑 Obriši</button>':'<div></div>')+
+    '<div class="flex gap-2">'+
+    '<button type="button" onclick="closeModal()" class="btn-secondary px-4 py-2 rounded-lg">Otkaži</button>'+
+    '<button type="submit" class="btn-primary px-4 py-2 rounded-lg">Sačuvaj</button>'+
+    '</div></div>'+
     '</form>');
   document.getElementById('lf').onsubmit = function(e) {
     e.preventDefault();
     const fd = new FormData(e.target);
-    if (ex) { ex.naslov = fd.get('naslov'); ex.opis = fd.get('opis'); }
-    else DB.lekcije.push({ id: Date.now(), razredId:razredId, predmet:predmet, datum:datum, nastavnikId:currentUser.id, naslov:fd.get('naslov'), opis:fd.get('opis') });
+    const data = { naslov:fd.get('naslov'), opis:fd.get('opis'), tip:fd.get('tip'), ostvarena:fd.get('ostvarena')==='on' };
+    if (ex) { Object.assign(ex, data); }
+    else DB.lekcije.push(Object.assign({ id: Date.now(), razredId:razredId, predmet:predmet, datum:datum, nastavnikId:currentUser.id }, data));
     saveData(); closeModal(); navigate('dnevnik'); showNotification('Lekcija sačuvana!');
   };
+}
+
+// Učitaj prošlu lekciju u formu
+function ucitajProslu(lekcijaId, razredId, predmet) {
+  if (!lekcijaId) return;
+  const l = DB.lekcije.find(x=>x.id===+lekcijaId);
+  if (!l) return;
+  document.getElementById('naslovInput').value = l.naslov || '';
+  document.getElementById('opisInput').value = l.opis || '';
+  if (l.tip) document.getElementById('tipLekcije').value = l.tip;
+  showNotification('Lekcija učitana - možeš urediti prije spremanja');
+}
+
+// Učitaj iz plana i programa
+function ucitajIzPP(idx, ppKey) {
+  if (idx==='') return;
+  const pp = DB.planProgram[ppKey][+idx];
+  if (!pp) return;
+  document.getElementById('naslovInput').value = pp.naziv || '';
+  if (pp.opis) document.getElementById('opisInput').value = pp.opis;
+  showNotification('Učitano iz plana i programa');
+}
+
+// Brze akcije
+function kopirajIzProsle(razredId, predmet, datum, tip) {
+  const prosle = DB.lekcije.filter(l=>l.razredId===razredId && l.predmet===predmet && l.datum!==datum)
+    .sort((a,b)=>b.datum.localeCompare(a.datum));
+  if (!prosle.length) return;
+  const l = prosle[0];
+  if (tip==='last') {
+    document.getElementById('naslovInput').value = l.naslov || '';
+    document.getElementById('opisInput').value = l.opis || '';
+    if (l.tip) document.getElementById('tipLekcije').value = l.tip;
+    showNotification('Kopirana zadnja lekcija');
+  } else if (tip==='nastavak') {
+    document.getElementById('naslovInput').value = (l.naslov || '') + ' - nastavak';
+    document.getElementById('opisInput').value = 'Nastavak prošlog časa ('+fmtDate(l.datum)+'):\n'+(l.naslov||'')+'\n\n';
+    document.getElementById('tipLekcije').value = 'Obrada novog gradiva';
+    showNotification('Postavljen nastavak prošle lekcije');
+  } else if (tip==='ponavljanje') {
+    document.getElementById('naslovInput').value = 'Ponavljanje: ' + (l.naslov || '');
+    document.getElementById('opisInput').value = 'Ponavljanje gradiva sa časa '+fmtDate(l.datum)+':\n'+(l.opis||l.naslov||'');
+    document.getElementById('tipLekcije').value = 'Ponavljanje';
+    showNotification('Postavljeno ponavljanje');
+  }
+}
+
+function obrisiLekciju(id) {
+  if (!confirm('🗑 Obrisati ovu lekciju?')) return;
+  DB.lekcije = DB.lekcije.filter(l=>l.id!==id);
+  saveData(); closeModal(); navigate('dnevnik'); showNotification('Lekcija obrisana');
+}
+
+// Brzo dodavanje lekcije - kopira iz odabrane prošle
+function brzoDodajLekciju(razredId, predmet, datum, lekcijaId) {
+  predmet = decodeURIComponent(predmet);
+  openLekcijaModal(razredId, predmet, datum);
+  // čekamo da se modal otvori, pa onda popuni
+  setTimeout(function(){
+    const sel = document.getElementById('proslaSelect');
+    if (sel) {
+      sel.value = lekcijaId;
+      ucitajProslu(lekcijaId, razredId, predmet);
+    }
+  }, 100);
 }
 
 function setPrisustvo(ucenikId, predmet, datum, status, selectEl) {
