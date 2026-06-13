@@ -330,8 +330,8 @@
 const DEFAULT_DATA = {
   skola: { naziv: 'OŠ "Hasan Kikić"', adresa: 'Sarajevo', godina: '2025/2026' },
   semestri: [
-    { broj:1, naziv:'Prvo polugodište', datumOd:'2025-09-01', datumDo:'2026-01-31', zatvoren:false },
-    { broj:2, naziv:'Drugo polugodište', datumOd:'2026-02-01', datumDo:'2026-06-21', zatvoren:false }
+    { broj:1, naziv:'Prvo polugodište', datumOd:'2025-09-01', datumDo:'2026-01-31', zatvoren:true },
+    { broj:2, naziv:'Drugo polugodište', datumOd:'2026-02-01', datumDo:'2026-06-21', zatvoren:true }
   ],
   users: [
     { id:1, username:'admin', password:'admin', role:'admin', name:'Administrator', email:'admin@edn.ba' },
@@ -484,7 +484,12 @@ function getSemesterInfo(broj) {
 }
 function isSemesterZatvoren(broj) {
   const s = getSemesterInfo(broj);
-  return s ? s.zatvoren : false;
+  // ako semestar nije pronađen, ZATVOREN je po defaultu
+  if (!s) return true;
+  return s.zatvoren !== false; // sve osim eksplicitno false znači zatvoren
+}
+function isSemesterOtvoren(broj) {
+  return !isSemesterZatvoren(broj);
 }
 function isSemesterLocked(razredId, predmet, sem) { return DB.zakljucniSemestri.some(z=>z.razredId===razredId&&z.predmet===predmet&&z.semestar===sem); }
 function avgOcjena(arr) {
@@ -898,10 +903,32 @@ RENDERERS.pocetna = function(c) {
 };
 
 function renderAdminHome(c) {
+  // status semestra
+  const aktSem = getCurrentSemester();
+  const semInfo = getSemesterInfo(aktSem);
+  let semBanner = '';
+  if (semInfo) {
+    const semZatv = semInfo.zatvoren !== false;
+    if (semZatv) {
+      semBanner = '<div class="bg-gradient-to-r from-red-500 to-red-700 text-white rounded-xl p-4 mb-4 shadow-lg flex items-center justify-between gap-3 flex-wrap">'+
+        '<div class="flex items-center gap-3"><div class="text-3xl">🔒</div>'+
+        '<div><b class="text-lg">'+escapeHtml(semInfo.naziv)+' je ZATVOREN</b>'+
+        '<div class="text-sm text-red-100">Nastavnici ne mogu unositi ocjene. Otvori semestar da bi mogli ocjenjivati.</div></div></div>'+
+        '<button onclick="toggleSemZatvoren('+aktSem+')" class="bg-white text-red-700 hover:bg-red-50 px-5 py-2.5 rounded-lg font-bold shadow flex items-center gap-2">🔓 OTVORI SADA</button>'+
+        '</div>';
+    } else {
+      semBanner = '<div class="bg-gradient-to-r from-green-500 to-green-700 text-white rounded-xl p-3 mb-4 shadow flex items-center justify-between gap-3 flex-wrap">'+
+        '<div class="flex items-center gap-3"><div class="text-2xl">🔓</div>'+
+        '<div><b>'+escapeHtml(semInfo.naziv)+' je OTVOREN</b> - nastavnici unose ocjene</div></div>'+
+        '<button onclick="navigate(\'semestri\')" class="bg-white/20 hover:bg-white/30 text-white border border-white/40 px-3 py-1.5 rounded text-sm">Upravljaj →</button>'+
+        '</div>';
+    }
+  }
   c.innerHTML = '<div class="mb-6">'+
     '<h2 class="text-3xl font-bold text-gray-800">Dobrodošli, '+escapeHtml(currentUser.name)+'</h2>'+
     '<p class="text-gray-500 mt-1">'+escapeHtml(DB.skola.naziv)+' • '+escapeHtml(DB.skola.godina)+'</p>'+
     '</div>'+
+    semBanner+
     '<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">'+
     [['Korisnika',DB.users.length,'blue','korisnici'],['Učenika',DB.ucenici.length,'green','ucenici'],['Razreda',DB.razredi.length,'purple','razredi'],['Predmeta',DB.predmeti.length,'orange','predmeti'],['Časova',DB.casovi.length,'pink','raspored'],['Ocjena',DB.ocjene.filter(o=>!o.zamjenjeno).length,'indigo','ocjene_pregled'],['Materijala',DB.materijali.length,'yellow','izvjestaji'],['Lekcija',DB.lekcije.length,'teal','izvjestaji']].map(function(it){
       return '<div onclick="navigate(\''+it[3]+'\')" class="stat-card bg-white border rounded-xl p-5">'+
@@ -940,6 +967,25 @@ function renderNastavnikHome(c) {
   let html = '<div class="mb-6">'+
     '<h2 class="text-3xl font-bold text-gray-800">Dobrodošli, '+escapeHtml(currentUser.name)+'</h2>'+
     '<p class="text-gray-500 mt-1">'+getDanName(new Date().getDay())+' • '+(currentUser.zaduzenja||[]).map(z=>z.predmet).join(', ')+'</p></div>';
+  
+  // STATUS SEMESTRA - banner na vrhu
+  const aktSem = getCurrentSemester();
+  const semInfo = getSemesterInfo(aktSem);
+  if (semInfo) {
+    const semZatv = semInfo.zatvoren !== false;
+    if (semZatv) {
+      html += '<div class="bg-gradient-to-r from-red-500 to-red-700 text-white rounded-xl p-4 mb-4 shadow-lg flex items-center gap-3">'+
+        '<div class="text-3xl">🔒</div>'+
+        '<div class="flex-1"><b class="text-lg">'+escapeHtml(semInfo.naziv)+' je ZATVOREN</b>'+
+        '<div class="text-sm text-red-100">Administrator nije otvorio semestar - ne možete unositi ocjene</div></div>'+
+        '</div>';
+    } else {
+      html += '<div class="bg-gradient-to-r from-green-500 to-green-700 text-white rounded-xl p-3 mb-4 shadow flex items-center gap-3">'+
+        '<div class="text-2xl">🔓</div>'+
+        '<div class="flex-1"><b>'+escapeHtml(semInfo.naziv)+' je OTVOREN</b> - možete unositi ocjene</div>'+
+        '</div>';
+    }
+  }
   
   if (trenutni) {
     html += '<div class="bg-gradient-to-r from-blue-600 to-blue-800 text-white rounded-2xl p-6 mb-6 pulse-now shadow-lg">'+
@@ -1559,8 +1605,17 @@ RENDERERS.dnevnik = function(c, state) {
     '<input type="date" id="dnDatum" value="'+datum+'" onchange="navigate(\'dnevnik\')" class="w-full px-3 py-2 border rounded-lg"></div>'+
     '</div>';
   
-  if (semZatvoren) html += '<div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg mb-4 flex items-center gap-3"><span class="text-2xl">🔒</span><div><b class="text-red-900">Semestar ZATVOREN od strane administratora.</b> Ne možete unositi ni mijenjati ocjene. Kontaktirajte admina za otvaranje.</div></div>';
-  else if (locked) html += '<div class="bg-green-50 border-l-4 border-green-500 p-4 rounded-lg mb-4 flex items-center gap-3"><span class="text-2xl">🔒</span><div><b class="text-green-900">Predmet zaključan za ovaj semestar.</b> Ocjenjivanje nije moguće. Zaključne ocjene se mijenjaju u sekciji "Ocjene".</div></div>';
+  const semInfo = getSemesterInfo(sem);
+  const semNaziv = semInfo ? semInfo.naziv+' (semestar '+sem+')' : 'Semestar '+sem;
+  if (semZatvoren) html += '<div class="bg-red-50 border-2 border-red-500 p-4 rounded-xl mb-4 flex items-start gap-3 shadow">'+
+    '<span class="text-3xl">🔒</span>'+
+    '<div class="flex-1">'+
+    '<b class="text-red-900 text-lg">'+escapeHtml(semNaziv)+' je ZATVOREN</b>'+
+    '<p class="text-sm text-red-800 mt-1">Administrator nije otvorio ovaj semestar za ocjenjivanje. <b>Ne možete upisivati ni mijenjati ocjene.</b></p>'+
+    '<p class="text-xs text-red-700 mt-1">Obratite se administratoru da otvori semestar.</p>'+
+    '</div></div>';
+  else if (locked) html += '<div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded-lg mb-4 flex items-center gap-3"><span class="text-2xl">🔐</span><div><b class="text-yellow-900">Predmet "<i>'+predmet+'</i>" zaključan za '+escapeHtml(semNaziv)+'.</b> Zaključne ocjene se mijenjaju u sekciji "Ocjene".</div></div>';
+  else html += '<div class="bg-green-50 border-l-4 border-green-500 p-3 rounded-lg mb-4 flex items-center gap-3 text-sm"><span class="text-xl">✓</span><div class="flex-1"><b class="text-green-900">'+escapeHtml(semNaziv)+' OTVOREN</b> za ocjenjivanje</div></div>';
   
   // Statistika prisutnosti danas
   html += '<div class="grid grid-cols-4 gap-3 mb-4">'+
@@ -1727,6 +1782,14 @@ function dodajOcjenu(ucenikId, predmet, tip, datum) {
 }
 
 function potvrdiOcjenu(ucenikId, predmet, tip, datum, vrijednost) {
+  // SIGURNOSNA PROVJERA - semestar otvoren?
+  const sem = getCurrentSemester();
+  if (isSemesterZatvoren(sem)) {
+    const semInfo = getSemesterInfo(sem);
+    showNotification('🔒 '+(semInfo?semInfo.naziv:'Semestar '+sem)+' je ZATVOREN. Admin mora otvoriti semestar.', 'error');
+    closeModal();
+    return;
+  }
   const pop = document.getElementById('popravlja');
   let zam = null;
   if (pop && pop.checked) {
@@ -1734,7 +1797,7 @@ function potvrdiOcjenu(ucenikId, predmet, tip, datum, vrijednost) {
     const stara = DB.ocjene.find(o=>o.id===zam);
     if (stara) stara.zamjenjeno = true;
   }
-  DB.ocjene.push({ id:Date.now(), ucenikId:ucenikId, predmet:predmet, tip:tip, vrijednost:vrijednost, datum:datum, semestar:getCurrentSemester(), nastavnikId:currentUser.id, zamjenjuje:zam, zamjenjeno:false, zakljucna:false });
+  DB.ocjene.push({ id:Date.now(), ucenikId:ucenikId, predmet:predmet, tip:tip, vrijednost:vrijednost, datum:datum, semestar:sem, nastavnikId:currentUser.id, zamjenjuje:zam, zamjenjeno:false, zakljucna:false });
   const ucUser = DB.users.find(u=>u.ucenikId===ucenikId);
   if (ucUser) DB.obavijesti.push({ id:Date.now()+1, naslov:'Nova ocjena', tekst:'Dobili ocjenu '+vrijednost+' iz '+predmet, datum:todayISO(), za:null, zaId:ucUser.id });
   saveData(); closeModal();
@@ -2689,10 +2752,12 @@ RENDERERS.ocjene = function(c) {
     '</div>';
   
   // STATUS PANEL semestra
+  const semInfoOC = getSemesterInfo(sem);
+  const semNazivOC = semInfoOC ? semInfoOC.naziv+' (broj '+sem+')' : 'Semestar '+sem;
   if (semZatvoren) {
-    html += '<div class="bg-gradient-to-r from-red-50 to-pink-50 border border-red-400 rounded-xl p-4 mb-4 flex items-center gap-3">'+
+    html += '<div class="bg-gradient-to-r from-red-50 to-pink-50 border-2 border-red-500 rounded-xl p-4 mb-4 flex items-center gap-3 shadow">'+
       '<span class="text-3xl">🔒</span>'+
-      '<div class="flex-1"><b class="text-red-900">Semestar ZATVOREN od administratora</b><div class="text-sm text-red-800">Ne možete unositi ni mijenjati ocjene. Obratite se administratoru ako trebate izmjenu.</div></div>'+
+      '<div class="flex-1"><b class="text-red-900 text-lg">'+escapeHtml(semNazivOC)+' je ZATVOREN</b><div class="text-sm text-red-800">Administrator nije otvorio ovaj semestar. <b>Ne možete unositi ni mijenjati ocjene.</b> Obratite se administratoru.</div></div>'+
       '</div>';
   } else if (locked) {
     html += '<div class="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-300 rounded-xl p-4 mb-4 flex items-center justify-between">'+
@@ -2783,6 +2848,13 @@ function zakljuciUSemestru(ucenikId, predmet, semestar) {
     '<button onclick="closeModal()" class="btn-secondary px-4 py-2 rounded-lg">Otkaži</button></div>');
 }
 function postaviZakljucnuU(ucenikId, predmet, semestar, vrijednost) {
+  // SIGURNOSNA PROVJERA - semestar otvoren?
+  if (isSemesterZatvoren(semestar)) {
+    const semInfo = getSemesterInfo(semestar);
+    showNotification('🔒 '+(semInfo?semInfo.naziv:'Semestar '+semestar)+' je ZATVOREN. Admin mora otvoriti.', 'error');
+    closeModal();
+    return;
+  }
   DB.ocjene = DB.ocjene.filter(o=>!(o.ucenikId===ucenikId && o.predmet===predmet && o.zakljucna && o.semestar===semestar));
   DB.ocjene.push({ id:Date.now(), ucenikId:ucenikId, predmet:predmet, tip:'zakljucna', vrijednost:vrijednost, datum:todayISO(), semestar:semestar, nastavnikId:currentUser.id, zakljucna:true, zamjenjeno:false });
   const ucUser = DB.users.find(u=>u.ucenikId===ucenikId);
@@ -2859,82 +2931,110 @@ RENDERERS.semestri = function(c) {
     '<button onclick="otvoriSemModal()" class="btn-primary px-4 py-2 rounded-lg font-semibold">+ Novi semestar</button>'+
     '</div></div>';
   
-  // Trenutni semestar info
+  // Trenutni semestar info - VELIKI STATUS BANNER
   const aktSemInfo = getSemesterInfo(aktSem);
   if (aktSemInfo) {
     const danaDo = Math.ceil((new Date(aktSemInfo.datumDo)-new Date(today))/(1000*60*60*24));
-    html += '<div class="bg-gradient-to-r from-blue-600 to-blue-800 text-white rounded-2xl p-5 mb-4 shadow-lg">'+
-      '<div class="flex flex-wrap justify-between items-center gap-3">'+
-      '<div>'+
-      '<div class="text-xs uppercase tracking-wider opacity-90">▶ TRENUTNI SEMESTAR</div>'+
-      '<h3 class="text-2xl font-bold mt-1">'+escapeHtml(aktSemInfo.naziv)+' (broj '+aktSem+')</h3>'+
-      '<p class="text-blue-100 mt-1">'+fmtDate(aktSemInfo.datumOd)+' - '+fmtDate(aktSemInfo.datumDo)+(aktSemInfo.zatvoren?' • <span class="bg-red-500 px-2 py-0.5 rounded text-xs">🔒 ZATVOREN</span>':' • <span class="bg-green-500 px-2 py-0.5 rounded text-xs">✓ AKTIVAN</span>')+'</p>'+
-      '</div>'+
-      '<div class="text-center">'+
-      '<div class="text-4xl font-bold">'+(danaDo>=0?danaDo:'0')+'</div>'+
-      '<div class="text-xs opacity-90">'+(danaDo>=0?'dana do kraja':'završio')+'</div>'+
-      '</div>'+
-      '</div></div>';
+    const zatvoren = aktSemInfo.zatvoren !== false;
+    if (zatvoren) {
+      // VELIKI CRVENI BANNER - zatvoren
+      html += '<div class="bg-gradient-to-br from-red-500 via-red-600 to-red-800 text-white rounded-2xl p-6 mb-4 shadow-xl">'+
+        '<div class="flex flex-wrap justify-between items-center gap-4">'+
+        '<div class="flex items-center gap-4">'+
+        '<div class="text-6xl">🔒</div>'+
+        '<div>'+
+        '<div class="text-xs uppercase tracking-wider opacity-90 font-bold">▶ TRENUTNI SEMESTAR</div>'+
+        '<h3 class="text-3xl font-bold mt-1">'+escapeHtml(aktSemInfo.naziv)+'</h3>'+
+        '<p class="text-red-100 mt-1">Semestar #'+aktSem+' • '+fmtDate(aktSemInfo.datumOd)+' - '+fmtDate(aktSemInfo.datumDo)+'</p>'+
+        '<div class="mt-3 bg-red-900/40 inline-block px-3 py-1 rounded-lg"><b>🔒 ZATVOREN</b> - nastavnici ne mogu ocjenjivati</div>'+
+        '</div></div>'+
+        '<button onclick="toggleSemZatvoren('+aktSem+')" class="bg-white text-red-700 hover:bg-red-50 px-6 py-4 rounded-xl font-bold text-lg shadow-lg flex items-center gap-2"><span class="text-2xl">🔓</span> OTVORI SEMESTAR</button>'+
+        '</div></div>';
+    } else {
+      // VELIKI ZELENI BANNER - otvoren
+      html += '<div class="bg-gradient-to-br from-green-500 via-green-600 to-emerald-700 text-white rounded-2xl p-6 mb-4 shadow-xl">'+
+        '<div class="flex flex-wrap justify-between items-center gap-4">'+
+        '<div class="flex items-center gap-4">'+
+        '<div class="text-6xl">🔓</div>'+
+        '<div>'+
+        '<div class="text-xs uppercase tracking-wider opacity-90 font-bold">▶ TRENUTNI SEMESTAR</div>'+
+        '<h3 class="text-3xl font-bold mt-1">'+escapeHtml(aktSemInfo.naziv)+'</h3>'+
+        '<p class="text-green-100 mt-1">Semestar #'+aktSem+' • '+fmtDate(aktSemInfo.datumOd)+' - '+fmtDate(aktSemInfo.datumDo)+'</p>'+
+        '<div class="mt-3 bg-green-900/40 inline-block px-3 py-1 rounded-lg"><b>✓ OTVOREN</b> - nastavnici mogu unositi ocjene</div>'+
+        '</div></div>'+
+        '<div class="text-center">'+
+        '<div class="text-5xl font-bold">'+(danaDo>=0?danaDo:'0')+'</div>'+
+        '<div class="text-xs opacity-90 mt-1">'+(danaDo>=0?'dana do kraja':'završio')+'</div>'+
+        '<button onclick="toggleSemZatvoren('+aktSem+')" class="bg-white/20 hover:bg-white/30 text-white border border-white/40 px-4 py-2 rounded-lg font-semibold text-sm mt-3 flex items-center gap-2"><span>🔒</span> Zatvori</button>'+
+        '</div>'+
+        '</div></div>';
+    }
   } else {
-    html += '<div class="bg-yellow-50 border border-yellow-300 rounded-xl p-5 mb-4">'+
-      '<b class="text-yellow-900">⚠ Nema aktivnog semestra za današnji datum!</b>'+
+    html += '<div class="bg-yellow-50 border-2 border-yellow-400 rounded-xl p-5 mb-4">'+
+      '<b class="text-yellow-900 text-lg">⚠ Nema aktivnog semestra za današnji datum!</b>'+
       '<p class="text-sm text-yellow-800 mt-1">Današnji datum ('+fmtDate(today)+') nije unutar nijednog semestra. Dodaj ili uredi semestre.</p>'+
       '</div>';
   }
   
   // Lista svih semestara
+  html += '<h3 class="font-bold text-lg mb-3 mt-6">📋 Svi semestri</h3>';
   html += '<div class="space-y-3">';
   DB.semestri.slice().sort((a,b)=>a.datumOd.localeCompare(b.datumOd)).forEach(function(s){
     const stat = semStat(s);
     const isAct = s.broj===aktSem && s.datumOd<=today && s.datumDo>=today;
     const istekao = s.datumDo < today;
     const buduci = s.datumOd > today;
-    html += '<div class="bg-white border rounded-xl shadow-sm overflow-hidden '+(isAct?'border-blue-500 border-2':'')+'">'+
-      '<div class="p-4 bg-gradient-to-r '+(isAct?'from-blue-50 to-indigo-50':istekao?'from-gray-50 to-gray-100':buduci?'from-green-50 to-emerald-50':'from-white to-white')+' border-b">'+
+    const zatvoren = s.zatvoren !== false; // default true
+    html += '<div class="bg-white border-2 rounded-xl shadow-sm overflow-hidden '+(isAct?'border-blue-500':zatvoren?'border-red-200':'border-green-200')+'">'+
+      '<div class="p-4 bg-gradient-to-r '+(zatvoren?'from-red-50 to-pink-50':'from-green-50 to-emerald-50')+' border-b">'+
       '<div class="flex flex-wrap justify-between items-start gap-3">'+
       '<div class="flex items-center gap-3">'+
-      '<div class="w-14 h-14 rounded-xl bg-gradient-to-br '+(isAct?'from-blue-500 to-blue-700':istekao?'from-gray-400 to-gray-600':'from-green-500 to-green-700')+' text-white font-bold flex items-center justify-center text-2xl">'+s.broj+'</div>'+
+      '<div class="w-16 h-16 rounded-xl bg-gradient-to-br '+(zatvoren?'from-red-500 to-red-700':'from-green-500 to-green-700')+' text-white font-bold flex items-center justify-center text-3xl shadow-md">'+s.broj+'</div>'+
       '<div>'+
-      '<h3 class="font-bold text-lg">'+escapeHtml(s.naziv)+'</h3>'+
+      '<h3 class="font-bold text-xl">'+escapeHtml(s.naziv)+'</h3>'+
       '<p class="text-sm text-gray-600">'+fmtDate(s.datumOd)+' - '+fmtDate(s.datumDo)+'</p>'+
-      '<div class="flex gap-1 mt-1 flex-wrap">'+
-      (isAct?'<span class="badge bg-blue-100 text-blue-700">▶ AKTIVAN</span>':'')+
+      '<div class="flex gap-1 mt-2 flex-wrap">'+
+      (isAct?'<span class="badge bg-blue-100 text-blue-700 font-semibold">▶ AKTIVAN SEMESTAR</span>':'')+
       (istekao?'<span class="badge bg-gray-200 text-gray-700">⏱ Istekao</span>':'')+
-      (buduci?'<span class="badge bg-green-100 text-green-700">📅 Budući</span>':'')+
-      (s.zatvoren?'<span class="badge bg-red-100 text-red-700">🔒 ZATVOREN</span>':'<span class="badge bg-green-100 text-green-700">🔓 Otvoren</span>')+
+      (buduci?'<span class="badge bg-blue-100 text-blue-700">📅 Budući</span>':'')+
+      (zatvoren?'<span class="badge bg-red-600 text-white font-bold">🔒 ZATVOREN</span>':'<span class="badge bg-green-600 text-white font-bold">🔓 OTVOREN</span>')+
       '</div>'+
       '</div>'+
       '</div>'+
-      '<div class="flex gap-2 flex-wrap">'+
-      '<button onclick="otvoriSemModal('+s.broj+')" class="btn-secondary px-3 py-1.5 rounded text-sm">✎ Uredi</button>'+
-      '<button onclick="toggleSemZatvoren('+s.broj+')" class="'+(s.zatvoren?'btn-success':'btn-danger')+' px-3 py-1.5 rounded text-sm font-semibold">'+(s.zatvoren?'🔓 OTVORI':'🔒 ZATVORI')+'</button>'+
-      '<button onclick="obrisiSem('+s.broj+')" class="text-red-600 hover:bg-red-50 px-3 py-1.5 rounded text-sm">🗑 Obriši</button>'+
+      '<div class="flex gap-2 flex-wrap items-start">'+
+      '<button onclick="toggleSemZatvoren('+s.broj+')" class="'+(zatvoren?'btn-success':'btn-danger')+' px-4 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2">'+(zatvoren?'<span class="text-lg">🔓</span> OTVORI':'<span class="text-lg">🔒</span> ZATVORI')+'</button>'+
+      '<button onclick="otvoriSemModal('+s.broj+')" class="btn-secondary px-3 py-2.5 rounded-lg text-sm">✎ Uredi</button>'+
+      '<button onclick="obrisiSem('+s.broj+')" class="text-red-600 hover:bg-red-50 px-3 py-2.5 rounded-lg text-sm border border-red-200">🗑</button>'+
       '</div>'+
       '</div></div>'+
       '<div class="grid grid-cols-3 gap-3 p-4">'+
       '<div class="text-center bg-blue-50 rounded-lg p-3"><div class="text-2xl font-bold text-blue-700">'+stat.ocjene+'</div><div class="text-xs text-gray-600">Unesenih ocjena</div></div>'+
       '<div class="text-center bg-green-50 rounded-lg p-3"><div class="text-2xl font-bold text-green-700">'+stat.zakljucene+'</div><div class="text-xs text-gray-600">Zaključnih ocjena</div></div>'+
-      '<div class="text-center bg-purple-50 rounded-lg p-3"><div class="text-2xl font-bold text-purple-700">'+stat.zakljucanih+'</div><div class="text-xs text-gray-600">Zaključanih kombinacija</div></div>'+
+      '<div class="text-center bg-purple-50 rounded-lg p-3"><div class="text-2xl font-bold text-purple-700">'+stat.zakljucanih+'</div><div class="text-xs text-gray-600">Zakl. predmeta</div></div>'+
       '</div>'+
       '</div>';
   });
   html += '</div>';
   
   // Info o zatvorenom semestru
-  html += '<div class="mt-6 bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm">'+
-    '<p class="font-semibold text-blue-900 mb-2">ℹ️ O zatvorenom semestru:</p>'+
-    '<ul class="text-blue-800 space-y-1 text-xs ml-4 list-disc">'+
-    '<li><b>Zatvoren semestar</b> = nastavnici ne mogu mijenjati ni dodavati ocjene</li>'+
-    '<li><b>Otvoren semestar</b> = nastavnici mogu unositi i mijenjati ocjene</li>'+
-    '<li>Možeš ponovno otvoriti zatvoren semestar ako trebaš dopuniti ocjene</li>'+
-    '<li>Datumi semestra automatski određuju koji je aktivan</li>'+
+  html += '<div class="mt-6 bg-blue-50 border-2 border-blue-300 rounded-xl p-4 text-sm">'+
+    '<p class="font-bold text-blue-900 mb-2 text-base">ℹ️ Kako radi semestar:</p>'+
+    '<ul class="text-blue-800 space-y-1.5 ml-4 list-disc">'+
+    '<li><b>🔒 ZATVOREN semestar</b> = nastavnici <b>NE MOGU</b> upisivati ni mijenjati ocjene (default stanje)</li>'+
+    '<li><b>🔓 OTVOREN semestar</b> = nastavnici mogu unositi i mijenjati ocjene</li>'+
+    '<li>Po default-u su <b>SVI semestri zatvoreni</b> dok ih admin ne otvori</li>'+
+    '<li>Admin može u svakom trenutku otvoriti ili zatvoriti semestar (npr. otvara ga na početku polugodišta, zatvara nakon kraja za ocjene)</li>'+
+    '<li>Datumi semestra automatski određuju koji je <b>aktivan</b> (po današnjem datumu)</li>'+
+    '<li>Kad otvoriš/zatvoriš semestar, svi nastavnici dobiju obavještenje</li>'+
     '</ul></div>';
   
   c.innerHTML = html;
 };
 
 function otvoriSemModal(broj) {
-  const s = broj ? DB.semestri.find(x=>x.broj===broj) : { broj: (Math.max.apply(null, DB.semestri.map(x=>x.broj).concat([0]))+1), naziv:'', datumOd:todayISO(), datumDo:todayISO(), zatvoren:false };
+  // default zatvoren=true za nove semestre
+  const s = broj ? DB.semestri.find(x=>x.broj===broj) : { broj: (Math.max.apply(null, DB.semestri.map(x=>x.broj).concat([0]))+1), naziv:'', datumOd:todayISO(), datumDo:todayISO(), zatvoren:true };
+  const zatvorenChecked = (s.zatvoren !== false); // default true
   showModal('<h3 class="text-xl font-bold mb-4">'+(broj?'✎ Uredi semestar':'+ Novi semestar')+'</h3>'+
     '<form id="semf" class="space-y-3">'+
     '<div class="grid grid-cols-2 gap-3">'+
@@ -2949,9 +3049,9 @@ function otvoriSemModal(broj) {
     '<div><label class="text-sm font-medium block mb-1">Datum završetka *</label>'+
     '<input name="datumDo" type="date" value="'+s.datumDo+'" required class="w-full px-3 py-2 border rounded-lg"></div>'+
     '</div>'+
-    '<label class="flex items-center gap-2 p-3 bg-gray-50 rounded-lg cursor-pointer">'+
-    '<input type="checkbox" name="zatvoren" '+(s.zatvoren?'checked':'')+' class="w-5 h-5">'+
-    '<span class="text-sm"><b>🔒 Semestar zatvoren</b> - nastavnici ne mogu mijenjati ocjene</span>'+
+    '<label class="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-lg cursor-pointer">'+
+    '<input type="checkbox" name="zatvoren" '+(zatvorenChecked?'checked':'')+' class="w-5 h-5 mt-0.5">'+
+    '<div class="text-sm"><b class="text-red-900">🔒 Semestar ZATVOREN</b><div class="text-xs text-red-800 mt-1">Nastavnici ne mogu unositi ni mijenjati ocjene. (Preporučeno za novi semestar - otvori ga ručno kad treba početi ocjenjivanje)</div></div>'+
     '</label>'+
     '<div class="flex justify-end gap-2 pt-4 border-t"><button type="button" onclick="closeModal()" class="btn-secondary px-4 py-2 rounded-lg">Otkaži</button><button type="submit" class="btn-primary px-4 py-2 rounded-lg">Sačuvaj</button></div>'+
     '</form>');
