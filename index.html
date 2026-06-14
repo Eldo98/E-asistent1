@@ -174,6 +174,13 @@
   .rasp-cell.cancelled { background: repeating-linear-gradient(45deg,#fee2e2,#fee2e2 6px,#fecaca 6px,#fecaca 12px) !important; border-color:#dc2626 !important; opacity:0.85; }
   .rasp-cell.cancelled .rasp-subject { text-decoration: line-through; color:#991b1b !important; }
   .rasp-cell.cancelled .rasp-teacher { text-decoration: line-through; }
+  
+  /* Swipe area - sprječi text selection */
+  #rasporedSwipe { touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+  
+  /* Animacija promjene sedmice */
+  .rasp-wrap { animation: weekSlide 0.3s ease-out; }
+  @keyframes weekSlide { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
   .subject-color-0 { border-left:5px solid #3b82f6 !important; }
   .subject-color-1 { border-left:5px solid #10b981 !important; }
   .subject-color-2 { border-left:5px solid #f59e0b !important; }
@@ -499,14 +506,112 @@ function avgOcjena(arr) {
 }
 function escapeHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
+// Trenutni week offset (0 = ova sedmica, 1 = sljedeća, -1 = prošla)
+let weekOffset = 0;
+
 function getDatumZaDan(d) {
   const now = new Date();
   const monday = new Date(now);
   monday.setDate(now.getDate() - ((now.getDay()+6)%7));
+  // pomjeri za weekOffset sedmica
+  monday.setDate(monday.getDate() + (weekOffset*7));
   const dt = new Date(monday);
   dt.setDate(monday.getDate()+(d-1));
   return dt.toISOString().split('T')[0];
 }
+
+function getWeekDateRange() {
+  const pon = getDatumZaDan(1);
+  const pet = getDatumZaDan(5);
+  return { pon:pon, pet:pet };
+}
+
+function getWeekLabel() {
+  if (weekOffset === 0) return 'Ova sedmica';
+  if (weekOffset === 1) return 'Sljedeća sedmica';
+  if (weekOffset === -1) return 'Prošla sedmica';
+  if (weekOffset > 0) return 'Za '+weekOffset+' sedmica';
+  return 'Prije '+Math.abs(weekOffset)+' sedmica';
+}
+
+function changeWeek(delta) {
+  weekOffset += delta;
+  navigate(currentView, viewState);
+}
+
+function resetWeek() {
+  weekOffset = 0;
+  navigate(currentView, viewState);
+}
+
+// ============= SWIPE GESTURE =============
+let swipeStartX = null;
+let swipeStartY = null;
+let swipeTime = null;
+
+function attachSwipe() {
+  const el = document.getElementById('rasporedSwipe');
+  if (!el) return;
+  // ukloni stare listenere ako postoje
+  el.ontouchstart = function(e) {
+    if (e.touches.length !== 1) return;
+    swipeStartX = e.touches[0].clientX;
+    swipeStartY = e.touches[0].clientY;
+    swipeTime = Date.now();
+  };
+  el.ontouchend = function(e) {
+    if (swipeStartX === null) return;
+    const touch = e.changedTouches[0];
+    const dx = touch.clientX - swipeStartX;
+    const dy = touch.clientY - swipeStartY;
+    const dt = Date.now() - swipeTime;
+    swipeStartX = null;
+    // Mora biti dovoljno brz (< 800ms), dovoljno horizontalan (|dx| > 2*|dy|), i dovoljno dug
+    if (dt < 800 && Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)*1.5) {
+      if (dx < 0) changeWeek(1); // swipe lijevo = sljedeća
+      else changeWeek(-1); // swipe desno = prošla
+    }
+  };
+  // Animacija prilikom swipea
+  el.ontouchmove = function(e) {
+    if (swipeStartX === null || e.touches.length !== 1) return;
+    const dx = e.touches[0].clientX - swipeStartX;
+    const dy = e.touches[0].clientY - swipeStartY;
+    // ako je vertikalni scroll, ne radi swipe
+    if (Math.abs(dy) > Math.abs(dx)) { swipeStartX = null; return; }
+    if (Math.abs(dx) > 30) {
+      el.style.transform = 'translateX('+(dx*0.3)+'px)';
+      el.style.opacity = (1 - Math.abs(dx)/500).toFixed(2);
+    }
+  };
+  el.ontouchcancel = function() {
+    swipeStartX = null;
+    el.style.transform = '';
+    el.style.opacity = '';
+  };
+  // resetuj nakon završetka swipe-a
+  const origTouchEnd = el.ontouchend;
+  el.ontouchend = function(e) {
+    el.style.transform = '';
+    el.style.opacity = '';
+    el.style.transition = 'transform .2s, opacity .2s';
+    setTimeout(()=>{ el.style.transition = ''; }, 250);
+    origTouchEnd(e);
+  };
+}
+
+// Tipkovnica - strelice lijevo/desno
+document.addEventListener('keydown', function(e) {
+  if (!currentUser) return;
+  const viewRaspored = currentView==='raspored' || currentView==='mojiraspored' || currentView==='mojicasovi';
+  if (!viewRaspored) return;
+  // ako je fokusiran input/textarea, ne radi
+  const tag = (document.activeElement || {}).tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+  if (e.key === 'ArrowLeft') { e.preventDefault(); changeWeek(-1); }
+  else if (e.key === 'ArrowRight') { e.preventDefault(); changeWeek(1); }
+  else if (e.key === 'Home') { e.preventDefault(); resetWeek(); }
+});
 
 function getTrenutniCas(nastId) {
   const n = new Date();
@@ -723,6 +828,10 @@ function setActiveSidebar(k) {
 function navigate(view, state) {
   state = state || {};
   if (view==='odjava') { if (confirm('Odjaviti se?')) logout(); return; }
+  // Reset week offset ako mijenjamo view (osim ako ostajemo na rasporedu)
+  const viewSadrziRaspored = view==='raspored' || view==='mojiraspored' || view==='mojicasovi';
+  const prethodniRaspored = currentView==='raspored' || currentView==='mojiraspored' || currentView==='mojicasovi';
+  if (!viewSadrziRaspored || !prethodniRaspored) weekOffset = 0;
   currentView = view;
   viewState = state;
   setActiveSidebar(view);
@@ -736,6 +845,8 @@ function navigate(view, state) {
   } else {
     c.innerHTML = '<div class="empty-state">Stranica u izradi</div>';
   }
+  // Aktiviraj swipe ako je raspored view
+  if (viewSadrziRaspored) setTimeout(attachSwipe, 50);
   if (currentUser) updateNotifBadge();
 }
 const RENDERERS = {};
@@ -1116,13 +1227,38 @@ function renderUcenikHome(c) {
 }
 
 // ----- RASPORED (mreža) -----
+function renderWeekNavigator() {
+  const range = getWeekDateRange();
+  return '<div class="bg-white border-2 rounded-xl p-3 mb-4 shadow-sm flex flex-wrap items-center justify-between gap-2">'+
+    '<button onclick="changeWeek(-1)" class="btn-secondary px-4 py-2 rounded-lg font-semibold flex items-center gap-1 hover:bg-blue-50" title="Prošla sedmica">'+
+    '<svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>'+
+    '<span class="hide-mobile">Prošla</span>'+
+    '</button>'+
+    '<div class="flex-1 text-center">'+
+    '<div class="font-bold text-lg '+(weekOffset===0?'text-blue-700':'text-gray-700')+'">'+(weekOffset===0?'📅 OVA SEDMICA':getWeekLabel().toUpperCase())+'</div>'+
+    '<div class="text-xs text-gray-500">'+fmtDate(range.pon)+' - '+fmtDate(range.pet)+'</div>'+
+    (weekOffset!==0?'<button onclick="resetWeek()" class="text-xs text-blue-600 hover:underline mt-1">↻ Vrati na ovu sedmicu</button>':'')+
+    '</div>'+
+    '<button onclick="changeWeek(1)" class="btn-secondary px-4 py-2 rounded-lg font-semibold flex items-center gap-1 hover:bg-blue-50" title="Sljedeća sedmica">'+
+    '<span class="hide-mobile">Sljedeća</span>'+
+    '<svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>'+
+    '</button>'+
+    '</div>';
+}
+
 function renderRasporedGrid(razredId, dani, vremena, today, nowMin) {
-  let html = '<div class="rasp-wrap"><div class="rasp-grid">';
+  // ako gledamo drugu sedmicu, "today" highlight ne treba biti aktivan
+  const realToday = new Date().getDay();
+  const realTodayHighlight = weekOffset === 0 ? today : -1;
+  
+  let html = renderWeekNavigator();
+  html += '<div id="rasporedSwipe" class="rasp-wrap"><div class="rasp-grid">';
   html += '<div></div>';
   for (let i=0;i<dani.length;i++) {
     const d = dani[i];
     const dat = getDatumZaDan(d);
-    html += '<div class="rasp-header'+(d===today?' today':'')+'">'+getDanName(d)+'<div class="text-[10px] font-normal opacity-90 mt-1">'+(d===today?'DANAS · ':'')+fmtDate(dat).substring(0,6)+'</div></div>';
+    const isToday = d===realTodayHighlight;
+    html += '<div class="rasp-header'+(isToday?' today':'')+'">'+getDanName(d)+'<div class="text-[10px] font-normal opacity-90 mt-1">'+(isToday?'DANAS · ':'')+fmtDate(dat).substring(0,6)+'</div></div>';
   }
   for (let vi=0;vi<vremena.length;vi++) {
     const v = vremena[vi];
@@ -1137,8 +1273,8 @@ function renderRasporedGrid(razredId, dani, vremena, today, nowMin) {
       const cs = DB.casovi.find(x=>x.razredId===razredId && x.dan===d && x.vrijeme===v);
       if (!cs) { html += '<div class="rasp-cell empty"></div>'; continue; }
       const start = h*60+m;
-      const isNow = d===today && nowMin>=start && nowMin<=start+(cs.trajanje||45);
-      const isSoon = d===today && start>nowMin && start-nowMin<30;
+      const isNow = d===realTodayHighlight && nowMin>=start && nowMin<=start+(cs.trajanje||45);
+      const isSoon = d===realTodayHighlight && start>nowMin && start-nowMin<30;
       const datZaDan = getDatumZaDan(d);
       const ispit = DB.ispitivanja.find(i=>i.razredId===razredId && i.predmet===cs.predmet && i.datum===datZaDan);
       const zadaca = DB.domaci.find(z=>z.razredId===razredId && z.predmet===cs.predmet && z.rok===datZaDan);
@@ -1303,7 +1439,9 @@ RENDERERS.raspored = function(c) {
       '<span><span class="rasp-tag rasp-tag-hw">📝</span> = zadaća</span>'+
       '<span><span class="rasp-tag rasp-tag-lesson">📖</span> = lekcija</span>'+
       '<span>🔵 SADA • 🟡 uskoro • 🔴 ispit</span>'+
-      '</div></div>';
+      '</div>'+
+      '<p class="mt-2 text-xs text-blue-700"><b>💡 Navigacija sedmica:</b> Strelice ← → na vrhu • Tipkovnica: ← →  • Mobilni: <b>swipe</b> lijevo/desno</p>'+
+      '</div>';
     return;
   }
   
@@ -1326,7 +1464,9 @@ RENDERERS.raspored = function(c) {
     '<span><span class="rasp-tag rasp-tag-hw">📝</span> = zadaća</span>'+
     '<span><span class="rasp-tag rasp-tag-lesson">📖</span> = lekcija</span>'+
     '<span>🔵 SADA • 🟡 uskoro • 🔴 ispit</span>'+
-    '</div></div>';
+    '</div>'+
+    '<p class="mt-2 text-xs text-blue-700"><b>💡 Navigacija sedmica:</b> Strelice ← → na vrhu • Tipkovnica: ← →  • Mobilni: <b>swipe</b> lijevo/desno</p>'+
+    '</div>';
 };
 
 // Pomoćna funkcija za prikaz SAMO nastavnikovih časova u mrežnom obliku
@@ -1336,11 +1476,15 @@ function renderMojiCasoviGrid(moji, dani, today, nowMin) {
   moji.forEach(function(cas){ if (vremena.indexOf(cas.vrijeme)<0) vremena.push(cas.vrijeme); });
   vremena.sort();
   
-  let html = '<div class="rasp-wrap"><div class="rasp-grid">';
+  const realTodayHighlight = weekOffset === 0 ? today : -1;
+  
+  let html = renderWeekNavigator();
+  html += '<div id="rasporedSwipe" class="rasp-wrap"><div class="rasp-grid">';
   html += '<div></div>';
   dani.forEach(function(d){
     const dat = getDatumZaDan(d);
-    html += '<div class="rasp-header'+(d===today?' today':'')+'">'+getDanName(d)+'<div class="text-[10px] font-normal opacity-90 mt-1">'+(d===today?'DANAS · ':'')+fmtDate(dat).substring(0,6)+'</div></div>';
+    const isToday = d===realTodayHighlight;
+    html += '<div class="rasp-header'+(isToday?' today':'')+'">'+getDanName(d)+'<div class="text-[10px] font-normal opacity-90 mt-1">'+(isToday?'DANAS · ':'')+fmtDate(dat).substring(0,6)+'</div></div>';
   });
   vremena.forEach(function(v, vi){
     const parts = v.split(':');
@@ -1353,8 +1497,8 @@ function renderMojiCasoviGrid(moji, dani, today, nowMin) {
       const cas = moji.find(x=>x.dan===d && x.vrijeme===v);
       if (!cas) { html += '<div class="rasp-cell empty"></div>'; return; }
       const start = h*60+m;
-      const isNow = d===today && nowMin>=start && nowMin<=start+(cas.trajanje||45);
-      const isSoon = d===today && start>nowMin && start-nowMin<30;
+      const isNow = d===realTodayHighlight && nowMin>=start && nowMin<=start+(cas.trajanje||45);
+      const isSoon = d===realTodayHighlight && start>nowMin && start-nowMin<30;
       const datZaDan = getDatumZaDan(d);
       const ispit = DB.ispitivanja.find(i=>i.razredId===cas.razredId && i.predmet===cas.predmet && i.datum===datZaDan);
       const zadaca = DB.domaci.find(z=>z.razredId===cas.razredId && z.predmet===cas.predmet && z.rok===datZaDan);
