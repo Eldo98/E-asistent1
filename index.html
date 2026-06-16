@@ -153,6 +153,9 @@
   .rasp-header { background:#1e40af; color:white; padding:12px 8px; text-align:center; border-radius:10px; font-weight:600; font-size:.85rem; }
   .rasp-header.today { background:linear-gradient(135deg,#dc2626,#f59e0b); box-shadow:0 4px 12px rgba(220,38,38,.3); }
   .rasp-time { background:#f1f5f9; color:#475569; padding:10px 4px; text-align:center; border-radius:10px; font-weight:700; font-size:.75rem; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:90px; }
+  .rasp-time.extended { background:linear-gradient(135deg,#fef3c7,#fde68a); color:#92400e; border:2px dashed #f59e0b; }
+  .rasp-time.extended .num { color:#92400e; }
+  .rasp-time.extended::after { content:'+'; position:absolute; font-size:0.5rem; }
   .rasp-time .num { font-size:1.1rem; color:#1e40af; }
   .rasp-cell { background:white; border:2px solid #e2e8f0; border-radius:12px; padding:8px; min-height:90px; transition:all .2s; position:relative; overflow:hidden; cursor:pointer; }
   .rasp-cell:hover { border-color:#1e40af; transform:translateY(-2px); box-shadow:0 6px 16px rgba(0,0,0,.08); }
@@ -509,6 +512,37 @@ function escapeHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&l
 
 // Trenutni week offset (0 = ova sedmica, 1 = sljedeća, -1 = prošla)
 let weekOffset = 0;
+
+// Generiraj listu vremena za raspored
+// - dinamički iz časova (razredId ili svih) 
+// - kombinovano sa standardnim školskim vremenima
+function getRasporedVremena(razredId) {
+  const standardna = ['08:00','08:50','09:45','10:40','11:35','12:30','13:15'];
+  const set = new Set(standardna);
+  // dodaj sva vremena iz časova (za sve dane)
+  DB.casovi.forEach(function(cas){
+    if (razredId && cas.razredId !== razredId) return;
+    if (cas.vrijeme) set.add(cas.vrijeme);
+  });
+  // sortiraj
+  return Array.from(set).sort(function(a,b){
+    const [ah,am] = a.split(':').map(Number);
+    const [bh,bm] = b.split(':').map(Number);
+    return (ah*60+am) - (bh*60+bm);
+  });
+}
+// vremena samo iz časova (bez standardnih) - za nastavnikov pregled
+function getRasporedVremenaSamoIzCasova(casovi) {
+  const set = new Set();
+  casovi.forEach(function(cas){
+    if (cas.vrijeme) set.add(cas.vrijeme);
+  });
+  return Array.from(set).sort(function(a,b){
+    const [ah,am] = a.split(':').map(Number);
+    const [bh,bm] = b.split(':').map(Number);
+    return (ah*60+am) - (bh*60+bm);
+  });
+}
 
 function getDatumZaDan(d) {
   const now = new Date();
@@ -1322,7 +1356,7 @@ function renderRasporedGrid(razredId, dani, vremena, today, nowMin) {
         (zadaca && !otkazan?'<span class="rasp-tag rasp-tag-hw" title="'+escapeHtml(zadaca.naslov)+'">📝 ZADAĆA</span>':'')+
         (lekcija && !otkazan?'<span class="rasp-tag rasp-tag-lesson" title="'+escapeHtml(lekcija.naslov)+'">📖 LEKCIJA</span>':'')+
         '</div>'+
-        (currentUser.role==='admin'?'<button onclick="event.stopPropagation();openCasModal('+cs.id+')" class="absolute bottom-1 right-1 text-blue-600 text-[10px] hover:bg-blue-50 px-1 rounded" title="Uredi čas">✎</button>':'')+
+        (currentUser.role==='admin'?'<div class="absolute bottom-1 right-1 flex gap-0.5"><button onclick="event.stopPropagation();openCasModal('+cs.id+')" class="text-blue-600 text-[10px] hover:bg-blue-100 px-1 rounded" title="Uredi čas">✎</button><button onclick="event.stopPropagation();deleteCas('+cs.id+')" class="text-red-600 text-[10px] hover:bg-red-100 px-1 rounded" title="Obriši čas">🗑</button></div>':'')+
         '</div>';
     }
   }
@@ -1404,10 +1438,15 @@ function prikaziDetaljeCasa(casId, datumZaDan) {
       html += '<button onclick="closeModal();openCasModal('+casId+')" class="btn-secondary px-3 py-1.5 rounded text-sm">✎ Uredi čas</button>';
     }
     if (jeAdmin || jeMojCas) {
-      html += '<button onclick="otkaziCas('+casId+',\''+datumZaDan+'\')" class="'+(otkazan?'btn-success':'btn-danger')+' px-3 py-1.5 rounded text-sm">'+(otkazan?'✓ Vrati čas':'❌ Otkaži čas')+'</button>';
+      html += '<button onclick="otkaziCas('+casId+',\''+datumZaDan+'\')" class="'+(otkazan?'btn-success':'btn-danger')+' px-3 py-1.5 rounded text-sm">'+(otkazan?'✓ Vrati čas':'❌ Otkaži samo ovaj termin')+'</button>';
       html += '<button onclick="zamijeniNastavnika('+casId+',\''+datumZaDan+'\')" class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded text-sm">🔄 Zamjena</button>';
     }
-    html += '</div></div>';
+    if (jeAdmin) {
+      html += '<button onclick="deleteCasTrajno('+casId+')" class="bg-red-700 hover:bg-red-800 text-white px-3 py-1.5 rounded text-sm font-bold">🗑 OBRIŠI ZAUVIJEK</button>';
+    }
+    html += '</div>';
+    if (jeAdmin) html += '<div class="text-[11px] text-gray-600 mt-2"><b>❌ Otkaži</b> = samo ovaj termin (npr. praznik) • <b>🗑 OBRIŠI ZAUVIJEK</b> = ukloni čas iz rasporeda potpuno</div>';
+    html += '</div>';
   }
   
   html += '<div class="flex justify-between gap-2 pt-3 border-t mt-4">'+
@@ -1419,7 +1458,6 @@ function prikaziDetaljeCasa(casId, datumZaDan) {
 
 RENDERERS.raspored = function(c) {
   const dani = [1,2,3,4,5];
-  const vremena = ['08:00','08:50','09:45','10:40','11:35','12:30','13:15'];
   const today = new Date().getDay();
   const nowMin = new Date().getHours()*60+new Date().getMinutes();
   
@@ -1452,7 +1490,7 @@ RENDERERS.raspored = function(c) {
     } else {
       // cijeli raspored odabranog razreda
       const razredId = +filterVal.split('_')[1];
-      c.innerHTML += renderRasporedGrid(razredId, dani, vremena, today, nowMin);
+      c.innerHTML += renderRasporedGrid(razredId, dani, getRasporedVremena(razredId), today, nowMin);
     }
     
     c.innerHTML += '<div class="mt-6 bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm">'+
@@ -1479,7 +1517,7 @@ RENDERERS.raspored = function(c) {
     '<select id="rspRazred" onchange="navigate(\'raspored\')" class="px-3 py-2 border rounded-lg">'+
     DB.razredi.map(r=>'<option value="'+r.id+'"'+(r.id===razredId?' selected':'')+'>'+r.naziv+'</option>').join('')+
     '</select></div>'+
-    renderRasporedGrid(razredId, dani, vremena, today, nowMin)+
+    renderRasporedGrid(razredId, dani, getRasporedVremena(razredId), today, nowMin)+
     '<div class="mt-6 bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm">'+
     '<p class="font-semibold text-blue-900 mb-1">💡 Legenda:</p>'+
     '<div class="flex flex-wrap gap-3 text-xs">'+
@@ -1562,13 +1600,23 @@ function openCasModal(id) {
     '</div>'+
     '<div><label class="text-sm font-medium block mb-1">Učionica</label><input name="ucionica" value="'+escapeHtml(cas.ucionica||'')+'" class="w-full px-3 py-2 border rounded-lg" placeholder="npr. 12"></div>'+
     '<div class="flex justify-between gap-2 pt-4 border-t">'+
-    (id?'<button type="button" onclick="deleteCas('+id+')" class="btn-danger px-4 py-2 rounded-lg text-sm">🗑 Obriši</button>':'<div></div>')+
+    (id?'<button type="button" onclick="deleteCasTrajno('+id+')" class="btn-danger px-4 py-2 rounded-lg text-sm font-bold">🗑 OBRIŠI ČAS</button>':'<div></div>')+
     '<div class="flex gap-2"><button type="button" onclick="closeModal()" class="btn-secondary px-4 py-2 rounded-lg">Otkaži</button><button type="submit" class="btn-primary px-4 py-2 rounded-lg">Sačuvaj</button></div>'+
     '</div></form>');
   document.getElementById('cf').onsubmit = function(e) {
     e.preventDefault();
     const fd = new FormData(e.target);
     const data = { razredId:+fd.get('razredId'), predmet:fd.get('predmet'), nastavnikId:+fd.get('nastavnikId'), dan:+fd.get('dan'), vrijeme:fd.get('vrijeme'), trajanje:+fd.get('trajanje'), ucionica:fd.get('ucionica') };
+    // Provjeri konflikt - isti nastavnik ne može držati 2 časa istovremeno
+    const konflikt = DB.casovi.find(c=>c.id!==(id||0) && c.nastavnikId===data.nastavnikId && c.dan===data.dan && c.vrijeme===data.vrijeme);
+    if (konflikt) {
+      if (!confirm('⚠ KONFLIKT: '+getNastavnikName(data.nastavnikId)+' već ima čas '+konflikt.predmet+' u '+konflikt.vrijeme+' ('+getRazredName(konflikt.razredId)+').\n\nIpak dodati?')) return;
+    }
+    // Provjeri konflikt - razred ne može imati 2 časa istovremeno
+    const konfRaz = DB.casovi.find(c=>c.id!==(id||0) && c.razredId===data.razredId && c.dan===data.dan && c.vrijeme===data.vrijeme);
+    if (konfRaz) {
+      if (!confirm('⚠ KONFLIKT: '+getRazredName(data.razredId)+' već ima čas '+konfRaz.predmet+' u '+konfRaz.vrijeme+'.\n\nIpak dodati?')) return;
+    }
     if (id) {
       Object.assign(cas, data);
       // obavijesti nastavnika i učenike u razredu o promjeni
@@ -1580,8 +1628,19 @@ function openCasModal(id) {
       });
     } else {
       DB.casovi.push(Object.assign({id:Date.now()}, data));
+      // obavijesti dodanog nastavnika
+      const nast = DB.users.find(u=>u.id===data.nastavnikId);
+      if (nast) DB.obavijesti.push({ id:Date.now(), naslov:'📅 Dodijeljen vam novi čas', tekst:data.predmet+' - '+getRazredName(data.razredId)+' ('+getDanName(data.dan)+' '+data.vrijeme+')', datum:todayISO(), za:null, zaId:nast.id });
     }
-    saveData(); closeModal(); navigate('raspored'); showNotification(id?'Čas izmijenjen!':'Čas dodan!');
+    // Provjeri da li je neuobičajeno vrijeme (van 08:00-13:15)
+    const standardna = ['08:00','08:50','09:45','10:40','11:35','12:30','13:15'];
+    const neuobicajeno = standardna.indexOf(data.vrijeme) < 0;
+    saveData(); closeModal(); navigate('raspored'); 
+    if (neuobicajeno && !id) {
+      showNotification('✓ Čas dodan u '+data.vrijeme+' (neuobičajeno vrijeme - automatski prikazano u rasporedu)', 'info');
+    } else {
+      showNotification(id?'✓ Čas izmijenjen':'✓ Čas dodan u raspored');
+    }
   };
 }
 
@@ -1594,9 +1653,28 @@ function deleteCas(id) {
       const usr = DB.users.find(x=>x.ucenikId===u.id);
       if (usr) DB.obavijesti.push({ id:Date.now()+Math.random(), naslov:'🗑 Obrisan čas iz rasporeda', tekst:cas.predmet+' - '+getDanName(cas.dan)+' '+cas.vrijeme, datum:todayISO(), za:null, zaId:usr.id });
     });
+    // obavijesti i nastavnika
+    if (cas.nastavnikId) {
+      DB.obavijesti.push({ id:Date.now()+Math.random(), naslov:'🗑 Vaš čas obrisan iz rasporeda', tekst:cas.predmet+' - '+getRazredName(cas.razredId)+' • '+getDanName(cas.dan)+' '+cas.vrijeme, datum:todayISO(), za:null, zaId:cas.nastavnikId });
+    }
   }
   DB.casovi = DB.casovi.filter(c=>c.id!==id);
-  saveData(); closeModal(); navigate('raspored'); showNotification('Čas obrisan');
+  // obrišimo i sve otkazane/zamjene za taj čas
+  DB.otkazani = (DB.otkazani||[]).filter(o=>o.casId!==id);
+  DB.zamjene = (DB.zamjene||[]).filter(z=>z.casId!==id);
+  saveData(); closeModal(); navigate('raspored'); showNotification('✓ Čas obrisan iz rasporeda');
+}
+
+// Trajno brisanje časa - poziva se iz modala detalja, traži potvrdu sa imenom
+function deleteCasTrajno(id) {
+  const cas = DB.casovi.find(c=>c.id===id);
+  if (!cas) return;
+  if (!confirm('🗑 TRAJNO obrisati čas?\n\n'+
+    cas.predmet+' • '+getRazredName(cas.razredId)+'\n'+
+    getDanName(cas.dan)+' u '+cas.vrijeme+'\n\n'+
+    '⚠ Ovo će obrisati čas iz rasporeda zauvijek!\n'+
+    '(Lekcije i ocjene NE BUDE obrisane, ostaju u dnevniku)')) return;
+  deleteCas(id);
 }
 
 // Otkazivanje časa za određeni datum (npr. čas otpada zbog praznika ili bolesti nastavnika)
@@ -3649,7 +3727,7 @@ RENDERERS.mojiraspored = function(c) {
   const u = DB.ucenici.find(x=>x.id===currentUser.ucenikId);
   if (!u) { c.innerHTML='<div class="empty-state">Nema učenika</div>'; return; }
   const dani = [1,2,3,4,5];
-  const vremena = ['08:00','08:50','09:45','10:40','11:35','12:30','13:15'];
+  const vremena = getRasporedVremena(u.razredId);
   const today = new Date().getDay();
   const nowMin = new Date().getHours()*60+new Date().getMinutes();
   c.innerHTML = '<h2 class="text-3xl font-bold mb-4">📅 Moj raspored</h2>'+
