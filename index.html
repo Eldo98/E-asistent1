@@ -406,7 +406,8 @@ const DEFAULT_DATA = {
   pravdanja: [],
   porukeChat: [],
   otkazani: [], // { id, casId, datum, razlog, otkazaoId }
-  zamjene: []   // { id, casId, datum, zamjenskiId, napomena, postavioId }
+  zamjene: [], // { id, casId, datum, zamjenskiId, napomena, postavioId }
+  popravni: [] // { id, ucenikId, predmet, tipoviIspita: ['usmeno','pismeno','praksa'], razlog, datum, vrijeme, mjesto, semestar, status, nastavnikId, postavioId, opis }
 };
 
 let DB;
@@ -684,10 +685,10 @@ function showCasNotif(cas) {
   n.className = 'notification';
   n.style.background = '#1e40af';
   n.style.cursor = 'pointer';
-  n.innerHTML = '<span style="font-size:1.3em">📚</span><div><div><b>Počeo je čas!</b></div><div style="font-size:.85em;opacity:.9">'+escapeHtml(cas.predmet)+' - '+escapeHtml(getRazredName(cas.razredId))+'</div></div>';
-  n.onclick = ()=>{ navigate('dnevnik',{razredId:cas.razredId,predmet:cas.predmet}); n.remove(); };
+  n.innerHTML = '<span style="font-size:1.5em">📚</span><div><div><b>Počeo je čas!</b></div><div style="font-size:.85em;opacity:.95">'+escapeHtml(cas.predmet)+' - '+escapeHtml(getRazredName(cas.razredId))+' • '+cas.vrijeme+'</div><div style="font-size:.75em;opacity:.85;margin-top:2px">👆 Klikni za otvaranje dnevnika</div></div>';
+  n.onclick = ()=>{ navigate('dnevnik',{razredId:cas.razredId,predmet:cas.predmet,datum:todayISO()}); n.remove(); };
   c.appendChild(n);
-  setTimeout(()=>{ if(n.parentNode){n.style.animation='slideIn .3s reverse'; setTimeout(()=>n.remove(),300);} }, 8000);
+  setTimeout(()=>{ if(n.parentNode){n.style.animation='slideIn .3s reverse'; setTimeout(()=>n.remove(),300);} }, 12000);
 }
 
 // ============= AUTH =============
@@ -777,6 +778,7 @@ const MENU = {
     ['ocjene_pregled','Pregled ocjena','star'],
     ['izvjestaji','Izvještaji','chart'],
     ['semestri','Semestri','cal'],
+    ['popravni','Popravni ispiti','exam'],
     ['poruke','Poruke','mail'],
     ['postavke','Postavke','set'],
     ['odjava','Odjava','out']
@@ -790,6 +792,7 @@ const MENU = {
     ['biljeske','Bilješke','note'],
     ['domaci','Domaće zadaće','homework'],
     ['ispitivanja','Ispitivanja','exam'],
+    ['popravni','Popravni','exam'],
     ['redari','Redari','badge'],
     ['mojrazred','Moj razred','school'],
     ['pravdanja_razrednik','Pravdanja','doc'],
@@ -806,6 +809,7 @@ const MENU = {
     ['mojeprisustvo','Prisustvo','student'],
     ['mojiraspored','Raspored','cal'],
     ['mojiispiti','Najave ispita','exam'],
+    ['mojipopravni','Popravni ispiti','exam'],
     ['mojimaterijali','Materijali','doc'],
     ['mojidomaci','Zadaće','homework'],
     ['poruke','Poruke','mail'],
@@ -1166,8 +1170,16 @@ function renderUcenikHome(c) {
   const ocj = DB.ocjene.filter(o=>o.ucenikId===u.id);
   const aktivne = ocj.filter(o=>!o.zamjenjeno && !o.zakljucna);
   const izost = DB.prisustva.filter(p=>p.ucenikId===u.id && p.status!=='P').length;
-  const ispiti = DB.ispitivanja.filter(i=>i.razredId===u.razredId && new Date(i.datum)>=new Date(todayISO())).sort((a,b)=>a.datum.localeCompare(b.datum));
+  // Filtriraj ispite - i one za cijeli razred i one pojedinačne za mene
+  const ispiti = DB.ispitivanja.filter(function(i){
+    if (i.razredId!==u.razredId) return false;
+    if (new Date(i.datum)<new Date(todayISO())) return false;
+    if (i.ucenikIds && i.ucenikIds.length) return i.ucenikIds.indexOf(u.id)>=0;
+    return true;
+  }).sort((a,b)=>a.datum.localeCompare(b.datum));
   const domaci = DB.domaci.filter(d=>d.razredId===u.razredId && new Date(d.rok)>=new Date(todayISO())).sort((a,b)=>a.rok.localeCompare(b.rok));
+  // Popravni
+  const mojiPopravni = (DB.popravni||[]).filter(p=>p.ucenikId===u.id && p.status==='zakazano' && new Date(p.datum)>=new Date(todayISO())).sort((a,b)=>a.datum.localeCompare(b.datum));
   const danasRedar = DB.redari.find(r=>r.razredId===u.razredId && (r.ucenikIds||[]).indexOf(u.id)>=0 && new Date(todayISO())>=new Date(r.datumOd) && new Date(todayISO())<=new Date(r.datumDo));
   const day = new Date().getDay();
   const raspToday = DB.casovi.filter(cs=>cs.razredId===u.razredId && cs.dan===day).sort((a,b)=>a.vrijeme.localeCompare(b.vrijeme));
@@ -1186,12 +1198,23 @@ function renderUcenikHome(c) {
   if (ispiti.length) {
     const dl = Math.ceil((new Date(ispiti[0].datum)-new Date(todayISO()))/(1000*60*60*24));
     if (dl<=3) {
+      const pojed = ispiti[0].ucenikIds && ispiti[0].ucenikIds.length;
       html += '<div class="bg-red-50 border-l-4 border-red-500 rounded-xl p-4 mb-4">'+
         '<div class="flex items-center gap-3"><span class="text-3xl">⚠</span>'+
-        '<div class="flex-1"><div class="font-bold text-red-900">Uskoro ispitivanje!</div>'+
+        '<div class="flex-1"><div class="font-bold text-red-900">Uskoro ispitivanje!'+(pojed?' <span class="badge bg-purple-600 text-white text-[10px] ml-1">POJEDINAČNO</span>':'')+'</div>'+
         '<div class="text-sm text-red-800">'+ispiti[0].tip.toUpperCase()+' - '+escapeHtml(ispiti[0].predmet)+': '+escapeHtml(ispiti[0].naslov)+' • '+fmtDate(ispiti[0].datum)+'</div></div>'+
         '<button onclick="navigate(\'mojiispiti\')" class="btn-danger px-3 py-1.5 rounded-lg text-sm">Detalji</button></div></div>';
     }
+  }
+  
+  // POPRAVNI - upozorenje
+  if (mojiPopravni.length) {
+    const dlPop = Math.ceil((new Date(mojiPopravni[0].datum)-new Date(todayISO()))/(1000*60*60*24));
+    html += '<div class="bg-gradient-to-r from-yellow-50 to-orange-50 border-l-4 border-orange-500 rounded-xl p-4 mb-4">'+
+      '<div class="flex items-center gap-3"><span class="text-3xl">🎯</span>'+
+      '<div class="flex-1"><div class="font-bold text-orange-900">⚠ Imate '+mojiPopravni.length+' zakazan'+(mojiPopravni.length===1?'':'a')+' POPRAVNI ispit!</div>'+
+      '<div class="text-sm text-orange-800">'+escapeHtml(mojiPopravni[0].predmet)+' ('+mojiPopravni[0].tipIspita.toUpperCase()+') • '+fmtDate(mojiPopravni[0].datum)+(dlPop===0?' • <b>DANAS!</b>':dlPop>0?' • za <b>'+dlPop+'</b> dana':'')+'</div></div>'+
+      '<button onclick="navigate(\'mojipopravni\')" class="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1.5 rounded-lg text-sm font-semibold">Detalji</button></div></div>';
   }
   
   html += '<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">'+
@@ -1717,9 +1740,11 @@ RENDERERS.mojicasovi = function(c) {
 RENDERERS.dnevnik = function(c, state) {
   state = state || {};
   const trenutni = getTrenutniCas(currentUser.id);
+  const sljedeci = getSljedeciCas(currentUser.id);
   const moji = DB.casovi.filter(cs=>cs.nastavnikId===currentUser.id);
   const dostupniRazredi = [];
   moji.forEach(function(m){ if (dostupniRazredi.indexOf(m.razredId)<0) dostupniRazredi.push(m.razredId); });
+  // AUTO-DETEKCIJA: prvo trenutni čas, pa state, pa dropdown, pa fallback
   const razredId = +(document.getElementById('dnRazred')?.value) || state.razredId || (trenutni?trenutni.razredId:0) || dostupniRazredi[0] || DB.razredi[0]?.id;
   const dostupniPredmeti = (currentUser.zaduzenja||[]).map(z=>z.predmet);
   if (!dostupniPredmeti.length) DB.predmeti.forEach(p=>dostupniPredmeti.push(p));
@@ -1727,6 +1752,9 @@ RENDERERS.dnevnik = function(c, state) {
   const datum = document.getElementById('dnDatum')?.value || state.datum || todayISO();
   const sem = getCurrentSemester();
   const semZatvoren = isSemesterZatvoren(sem);
+  
+  // Da li je trenutno odabran čas zaista naš trenutni čas?
+  const naTrenutnomCasu = trenutni && razredId===trenutni.razredId && predmet===trenutni.predmet && datum===todayISO();
   const locked = isSemesterLocked(razredId, predmet, sem) || semZatvoren;
   const ispit = DB.ispitivanja.find(i=>i.razredId===razredId && i.predmet===predmet && i.datum===datum);
   const zadaca = DB.domaci.find(z=>z.razredId===razredId && z.predmet===predmet && z.rok===datum);
@@ -1760,6 +1788,25 @@ RENDERERS.dnevnik = function(c, state) {
   
   const semInfo = getSemesterInfo(sem);
   const semNaziv = semInfo ? semInfo.naziv+' (semestar '+sem+')' : 'Semestar '+sem;
+  
+  // BANNER: ako smo na trenutnom času, istakni to
+  if (naTrenutnomCasu) {
+    html += '<div class="bg-gradient-to-r from-blue-600 to-blue-800 text-white rounded-xl p-4 mb-4 shadow-lg pulse-now flex flex-wrap items-center justify-between gap-3">'+
+      '<div class="flex items-center gap-3">'+
+      '<div class="text-3xl">▶</div>'+
+      '<div><b class="text-lg">TRENUTNO STE NA OVOM ČASU</b>'+
+      '<div class="text-sm text-blue-100">Auto-detektovano: '+escapeHtml(trenutni.predmet)+' • '+escapeHtml(getRazredName(trenutni.razredId))+' • '+trenutni.vrijeme+(trenutni.ucionica?' • Uč. '+trenutni.ucionica:'')+'</div></div>'+
+      '</div>'+
+      '<span class="bg-white text-blue-700 px-3 py-1 rounded-full text-xs font-bold">✓ POSTAVLJEN ČAS</span>'+
+      '</div>';
+  } else if (trenutni && currentView==='dnevnik') {
+    // Imamo trenutni čas ali nismo prebačeni na njega
+    html += '<div class="bg-yellow-50 border-2 border-yellow-400 rounded-xl p-3 mb-4 flex flex-wrap items-center justify-between gap-2">'+
+      '<div class="text-sm"><b class="text-yellow-900">⏰ Trenutno imate čas:</b> <b>'+escapeHtml(trenutni.predmet)+'</b> • '+escapeHtml(getRazredName(trenutni.razredId))+' ('+trenutni.vrijeme+')</div>'+
+      '<button onclick="navigate(\'dnevnik\',{razredId:'+trenutni.razredId+',predmet:\''+escapeHtml(trenutni.predmet).replace(/\x27/g,'%27')+'\',datum:\''+todayISO()+'\'})" class="btn-primary px-3 py-1.5 rounded text-sm font-semibold">📖 Prebaci na taj čas</button>'+
+      '</div>';
+  }
+  
   if (semZatvoren) html += '<div class="bg-red-50 border-2 border-red-500 p-4 rounded-xl mb-4 flex items-start gap-3 shadow">'+
     '<span class="text-3xl">🔒</span>'+
     '<div class="flex-1">'+
@@ -2531,55 +2578,671 @@ RENDERERS.ispitivanja = function(c) {
     list = list.filter(i=>i.nastavnikId===currentUser.id || mojiRazredi.indexOf(i.razredId)>=0);
   }
   list.sort((a,b)=>a.datum.localeCompare(b.datum));
-  c.innerHTML = '<div class="flex justify-between items-center mb-6"><h2 class="text-3xl font-bold">⚠️ Najave ispitivanja</h2>'+
-    (currentUser.role==='nastavnik'?'<button onclick="openIspitModal()" class="btn-primary px-4 py-2 rounded-lg">+ Najava</button>':'')+
+  const tabFilter = document.getElementById('ispTab')?.value || 'svi';
+  
+  c.innerHTML = '<div class="flex flex-wrap justify-between items-center gap-3 mb-4">'+
+    '<h2 class="text-3xl font-bold">⚠️ Najave ispitivanja</h2>'+
+    (currentUser.role==='nastavnik'?'<button onclick="openIspitModal()" class="btn-primary px-4 py-2 rounded-lg font-semibold">+ Najava ispita</button>':'')+
     '</div>'+
-    '<div class="grid md:grid-cols-2 gap-4">'+
+    '<div class="mb-4 flex flex-wrap gap-2 bg-white p-3 rounded-xl border">'+
+    '<select id="ispTab" onchange="navigate(\'ispitivanja\')" class="px-3 py-2 border rounded-lg flex-1 max-w-xs">'+
+    '<option value="svi"'+(tabFilter==='svi'?' selected':'')+'>Sve najave</option>'+
+    '<option value="aktualne"'+(tabFilter==='aktualne'?' selected':'')+'>📅 Aktualne i buduće</option>'+
+    '<option value="proslo"'+(tabFilter==='proslo'?' selected':'')+'>⏱ Prošli ispiti</option>'+
+    '<option value="pojedinacni"'+(tabFilter==='pojedinacni'?' selected':'')+'>👤 Samo pojedinačni</option>'+
+    '</select>'+
+    '</div>';
+  
+  if (tabFilter==='aktualne') list = list.filter(i=>new Date(i.datum)>=new Date(todayISO()));
+  else if (tabFilter==='proslo') list = list.filter(i=>new Date(i.datum)<new Date(todayISO()));
+  else if (tabFilter==='pojedinacni') list = list.filter(i=>i.ucenikIds && i.ucenikIds.length);
+  
+  c.innerHTML += '<div class="grid md:grid-cols-2 gap-4">'+
     (list.length?list.map(function(isp){
       const dl = Math.ceil((new Date(isp.datum)-new Date(todayISO()))/(1000*60*60*24));
       const passed = dl<0;
-      const bg = isp.tip==='pismeno'?'bg-red-50 border-red-500':isp.tip==='usmeno'?'bg-orange-50 border-orange-500':isp.tip==='kontrolni'?'bg-yellow-50 border-yellow-500':'bg-blue-50 border-blue-500';
-      return '<div class="bg-white border-l-4 '+bg+' rounded-xl p-5 '+(passed?'opacity-60':'')+'">'+
-        '<div class="flex justify-between items-start mb-2"><div><h3 class="font-bold text-lg">'+escapeHtml(isp.naslov)+'</h3>'+
+      const isPojedinacno = isp.ucenikIds && isp.ucenikIds.length;
+      const bg = isp.tip==='pismeno'?'border-red-500':isp.tip==='usmeno'?'border-orange-500':isp.tip==='kontrolni'?'border-yellow-500':isp.tip==='praksa'?'border-purple-500':'border-blue-500';
+      const moj = currentUser.role==='nastavnik' && isp.nastavnikId===currentUser.id;
+      return '<div class="bg-white border-l-4 '+bg+' rounded-xl p-5 '+(passed?'opacity-75':'')+' shadow-sm">'+
+        '<div class="flex justify-between items-start mb-2 flex-wrap gap-2">'+
+        '<div class="flex-1 min-w-0"><h3 class="font-bold text-lg">'+escapeHtml(isp.naslov)+'</h3>'+
         '<p class="text-sm text-gray-600">'+escapeHtml(isp.predmet)+' • '+getRazredName(isp.razredId)+'</p></div>'+
-        '<span class="badge '+(isp.tip==='pismeno'?'bg-red-100 text-red-700':isp.tip==='usmeno'?'bg-orange-100 text-orange-700':isp.tip==='kontrolni'?'bg-yellow-100 text-yellow-700':'bg-blue-100 text-blue-700')+'">'+isp.tip.toUpperCase()+'</span></div>'+
+        '<div class="flex flex-col items-end gap-1">'+
+        '<span class="badge '+(isp.tip==='pismeno'?'bg-red-100 text-red-700':isp.tip==='usmeno'?'bg-orange-100 text-orange-700':isp.tip==='kontrolni'?'bg-yellow-100 text-yellow-700':isp.tip==='praksa'?'bg-purple-100 text-purple-700':'bg-blue-100 text-blue-700')+' font-bold">'+isp.tip.toUpperCase()+'</span>'+
+        (isPojedinacno?'<span class="badge bg-purple-600 text-white text-[10px]">👤 POJEDINAČNO</span>':'<span class="badge bg-gray-100 text-gray-700 text-[10px]">👥 RAZRED</span>')+
+        '</div></div>'+
         '<div class="flex gap-4 text-sm mb-2"><span>📅 <b>'+fmtDate(isp.datum)+'</b></span><span>🕐 '+isp.vrijeme+'</span>'+
-        '<span class="ml-auto badge '+(passed?'bg-gray-100 text-gray-600':dl<=1?'bg-red-100 text-red-700':dl<=3?'bg-yellow-100 text-yellow-700':'bg-green-100 text-green-700')+'">'+(passed?'prošlo':dl===0?'DANAS':dl+'d')+'</span></div>'+
-        (isp.opis?'<p class="text-sm text-gray-700 mb-2">'+escapeHtml(isp.opis)+'</p>':'')+
-        '<div class="flex justify-between text-xs text-gray-500 pt-2 border-t"><span>'+getNastavnikName(isp.nastavnikId)+'</span>'+
-        (currentUser.role==='nastavnik' && isp.nastavnikId===currentUser.id?'<button onclick="obrisiIspit('+isp.id+')" class="text-red-600 hover:underline">Obriši</button>':'')+
-        '</div></div>';
-    }).join(''):'<div class="empty-state col-span-2">Nema najava</div>')+
+        '<span class="ml-auto badge '+(passed?'bg-gray-100 text-gray-600':dl<=1?'bg-red-100 text-red-700':dl<=3?'bg-yellow-100 text-yellow-700':'bg-green-100 text-green-700')+'">'+(passed?'prošlo':dl===0?'DANAS!':dl+' dana')+'</span></div>'+
+        (isp.opis?'<p class="text-sm text-gray-700 mb-2 p-2 bg-gray-50 rounded">'+escapeHtml(isp.opis)+'</p>':'')+
+        
+        // POJEDINAČNI UČENICI
+        (isPojedinacno ? '<div class="bg-purple-50 border border-purple-200 rounded-lg p-2 mb-2">'+
+          '<div class="text-xs font-bold text-purple-900 mb-1">👤 ISPITUJE SE ('+isp.ucenikIds.length+'):</div>'+
+          '<div class="flex flex-wrap gap-1">'+
+          isp.ucenikIds.map(function(uid){
+            const u = DB.ucenici.find(x=>x.id===uid);
+            if (!u) return '';
+            // ima li već ocjenu za ovaj ispit?
+            const ocj = DB.ocjene.find(o=>o.ucenikId===uid && o.predmet===isp.predmet && o.ispitId===isp.id);
+            return '<span class="text-xs bg-white border border-purple-300 px-2 py-1 rounded flex items-center gap-1">'+
+              escapeHtml(u.prezime+' '+u.ime)+
+              (ocj?' <span class="ocjena-chip ocjena-'+ocj.vrijednost+'" style="font-size:.6rem;min-width:18px;height:18px;cursor:default;margin:0">'+ocj.vrijednost+'</span>':'')+
+              '</span>';
+          }).join('')+
+          '</div></div>' : '')+
+        
+        '<div class="flex justify-between text-xs text-gray-500 pt-2 border-t">'+
+        '<span>'+getNastavnikName(isp.nastavnikId)+'</span>'+
+        '<div class="flex gap-2">'+
+        (moj && passed && isPojedinacno ? '<button onclick="upisOcjenaIspit('+isp.id+')" class="text-green-600 hover:underline font-semibold">📝 Upiši ocjene</button>' : '')+
+        (moj && passed && !isPojedinacno ? '<button onclick="upisOcjenaIspit('+isp.id+')" class="text-green-600 hover:underline font-semibold">📝 Upiši ocjene</button>' : '')+
+        (moj?'<button onclick="openIspitModal('+isp.id+')" class="text-blue-600 hover:underline">✎ Uredi</button>':'')+
+        '</div></div></div>';
+    }).join(''):'<div class="empty-state col-span-2">Nema najava ispita</div>')+
     '</div>';
 };
-function openIspitModal() {
+
+// Upis ocjena za ispit - lista učenika sa input poljima
+function upisOcjenaIspit(ispitId) {
+  const isp = DB.ispitivanja.find(x=>x.id===ispitId);
+  if (!isp) return;
+  // sigurnosna provjera - semestar otvoren?
+  const sem = getCurrentSemester();
+  if (isSemesterZatvoren(sem)) {
+    const semInfo = getSemesterInfo(sem);
+    showNotification('🔒 '+(semInfo?semInfo.naziv:'Semestar')+' je ZATVOREN. Admin mora otvoriti.', 'error');
+    return;
+  }
+  // ko se ispituje?
+  const ucenici = isp.ucenikIds && isp.ucenikIds.length ? 
+    isp.ucenikIds.map(id=>DB.ucenici.find(u=>u.id===id)).filter(Boolean) :
+    DB.ucenici.filter(u=>u.razredId===isp.razredId);
+  
+  // tip ocjene od tipa ispita
+  const tipOcjene = isp.tip==='pismeno' || isp.tip==='kontrolni' || isp.tip==='test' ? 'pismena' : isp.tip==='usmeno' ? 'usmena' : 'aktivnost';
+  
+  let html = '<h3 class="text-xl font-bold mb-1">📝 Upis ocjena</h3>'+
+    '<p class="text-sm text-gray-600 mb-1"><b>'+escapeHtml(isp.naslov)+'</b></p>'+
+    '<p class="text-xs text-gray-500 mb-4">'+isp.tip.toUpperCase()+' • '+isp.predmet+' • '+getRazredName(isp.razredId)+' • '+fmtDate(isp.datum)+'</p>'+
+    '<div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3 text-sm">'+
+    '<b>ℹ️ Tip ocjene:</b> Automatski se upisuje kao <b>'+(tipOcjene==='pismena'?'PISMENA':tipOcjene==='usmena'?'USMENA':'AKTIVNOST')+'</b> u dnevnik'+
+    '</div>'+
+    '<div class="space-y-2 max-h-96 overflow-y-auto border rounded-lg p-2 bg-gray-50">';
+  
+  ucenici.forEach(function(u){
+    const postOcj = DB.ocjene.find(o=>o.ucenikId===u.id && o.predmet===isp.predmet && o.ispitId===ispitId);
+    html += '<div class="bg-white border rounded-lg p-3 flex items-center gap-3" data-uc="'+u.id+'">'+
+      '<div class="font-semibold flex-1">'+escapeHtml(u.prezime+' '+u.ime)+'</div>'+
+      '<div class="flex gap-1 flex-wrap items-center">'+
+      [1,2,3,4,5].map(function(v){
+        return '<button onclick="postaviOcjenuIspit('+ispitId+','+u.id+','+v+',this)" class="ocjena-chip ocjena-'+v+(postOcj&&postOcj.vrijednost==v?' ring-2 ring-blue-600':'')+'" style="cursor:pointer;width:34px;height:34px;font-size:1.1rem">'+v+'</button>';
+      }).join('')+
+      '<button onclick="postaviOcjenuIspit('+ispitId+','+u.id+',\'NPS\',this)" class="ocjena-chip ocjena-NPS'+(postOcj&&postOcj.vrijednost==='NPS'?' ring-2 ring-blue-600':'')+'" style="cursor:pointer;height:34px;font-size:.7rem">NPS</button>'+
+      (postOcj?'<button onclick="ukloniOcjenuIspit('+ispitId+','+u.id+')" class="text-red-500 hover:bg-red-50 w-7 h-7 rounded ml-1" title="Ukloni">×</button>':'')+
+      '</div></div>';
+  });
+  
+  html += '</div>'+
+    '<div class="flex justify-end mt-4 pt-3 border-t">'+
+    '<button onclick="closeModal()" class="btn-primary px-4 py-2 rounded-lg">Završi</button>'+
+    '</div>';
+  showModal(html);
+}
+
+function postaviOcjenuIspit(ispitId, ucenikId, vrijednost, btnEl) {
+  const isp = DB.ispitivanja.find(x=>x.id===ispitId);
+  if (!isp) return;
+  const sem = getCurrentSemester();
+  if (isSemesterZatvoren(sem)) {
+    showNotification('🔒 Semestar zatvoren', 'error'); return;
+  }
+  const tipOcjene = isp.tip==='pismeno' || isp.tip==='kontrolni' || isp.tip==='test' ? 'pismena' : isp.tip==='usmeno' ? 'usmena' : 'aktivnost';
+  // Ukloni postojeću za ovaj ispit
+  DB.ocjene = DB.ocjene.filter(o=>!(o.ucenikId===ucenikId && o.predmet===isp.predmet && o.ispitId===ispitId));
+  // Dodaj novu
+  DB.ocjene.push({ 
+    id:Date.now()+Math.random(), 
+    ucenikId:ucenikId, predmet:isp.predmet, tip:tipOcjene, 
+    vrijednost:vrijednost, datum:isp.datum, semestar:sem, 
+    nastavnikId:currentUser.id, zamjenjuje:null, zamjenjeno:false, zakljucna:false,
+    ispitId:ispitId, biljeska:'Iz ispita: '+isp.naslov
+  });
+  // Obavještenje
+  const usr = DB.users.find(u=>u.ucenikId===ucenikId);
+  if (usr) DB.obavijesti.push({ id:Date.now()+Math.random(), naslov:'⭐ Ocjena iz ispita', tekst:isp.predmet+' ('+isp.tip+'): '+vrijednost, datum:todayISO(), za:null, zaId:usr.id });
+  saveData();
+  showNotification('Ocjena '+vrijednost+' upisana za '+(DB.ucenici.find(u=>u.id===ucenikId)||{}).ime);
+  // Re-render modal
+  upisOcjenaIspit(ispitId);
+}
+
+function ukloniOcjenuIspit(ispitId, ucenikId) {
+  if (!confirm('Ukloniti ocjenu?')) return;
+  const isp = DB.ispitivanja.find(x=>x.id===ispitId);
+  DB.ocjene = DB.ocjene.filter(o=>!(o.ucenikId===ucenikId && o.predmet===isp.predmet && o.ispitId===ispitId));
+  saveData();
+  upisOcjenaIspit(ispitId);
+}
+function openIspitModal(id) {
+  const ex = id ? DB.ispitivanja.find(x=>x.id===id) : null;
   const dostupniPredmeti = (currentUser.zaduzenja||[]).map(z=>z.predmet);
   if (!dostupniPredmeti.length) DB.predmeti.forEach(p=>dostupniPredmeti.push(p));
-  showModal('<h3 class="text-xl font-bold mb-4">⚠️ Nova najava ispita</h3>'+
+  const defRazred = ex ? ex.razredId : DB.razredi[0]?.id;
+  
+  showModal('<h3 class="text-xl font-bold mb-4">⚠️ '+(id?'Uredi ispit':'Novi ispit')+'</h3>'+
     '<form id="isf" class="space-y-3">'+
-    '<div><label class="text-sm">Naslov *</label><input name="naslov" required class="w-full px-3 py-2 border rounded-lg" placeholder="npr. Pismeni iz brojeva"></div>'+
-    '<div class="grid grid-cols-2 gap-3"><div><label class="text-sm">Predmet</label><select name="predmet" class="w-full px-3 py-2 border rounded-lg">'+dostupniPredmeti.map(p=>'<option>'+p+'</option>').join('')+'</select></div>'+
-    '<div><label class="text-sm">Razred</label><select name="razredId" class="w-full px-3 py-2 border rounded-lg">'+DB.razredi.map(r=>'<option value="'+r.id+'">'+r.naziv+'</option>').join('')+'</select></div></div>'+
-    '<div><label class="text-sm">Tip *</label><select name="tip" class="w-full px-3 py-2 border rounded-lg">'+
-    '<option value="pismeno">📝 Pismeno</option><option value="usmeno">🗣 Usmeno</option><option value="kontrolni">📋 Kontrolni</option><option value="test">✅ Test</option>'+
+    '<div><label class="text-sm font-medium block mb-1">Naslov *</label><input name="naslov" value="'+escapeHtml(ex?ex.naslov:'')+'" required class="w-full px-3 py-2 border rounded-lg" placeholder="npr. Pismeni iz brojeva"></div>'+
+    '<div class="grid grid-cols-2 gap-3">'+
+    '<div><label class="text-sm font-medium block mb-1">Predmet</label><select name="predmet" class="w-full px-3 py-2 border rounded-lg">'+dostupniPredmeti.map(p=>'<option'+(ex&&p===ex.predmet?' selected':'')+'>'+p+'</option>').join('')+'</select></div>'+
+    '<div><label class="text-sm font-medium block mb-1">Razred</label><select name="razredId" id="isfRazred" onchange="osvjeziUceniciSelect()" class="w-full px-3 py-2 border rounded-lg">'+DB.razredi.map(r=>'<option value="'+r.id+'"'+(r.id===defRazred?' selected':'')+'>'+r.naziv+'</option>').join('')+'</select></div>'+
+    '</div>'+
+    '<div><label class="text-sm font-medium block mb-1">Tip ispita *</label><select name="tip" class="w-full px-3 py-2 border rounded-lg">'+
+    '<option value="pismeno"'+(ex&&ex.tip==='pismeno'?' selected':'')+'>📝 Pismeno</option>'+
+    '<option value="usmeno"'+(ex&&ex.tip==='usmeno'?' selected':'')+'>🗣 Usmeno</option>'+
+    '<option value="kontrolni"'+(ex&&ex.tip==='kontrolni'?' selected':'')+'>📋 Kontrolni</option>'+
+    '<option value="test"'+(ex&&ex.tip==='test'?' selected':'')+'>✅ Test</option>'+
+    '<option value="praksa"'+(ex&&ex.tip==='praksa'?' selected':'')+'>🛠 Praktični rad</option>'+
     '</select></div>'+
-    '<div class="grid grid-cols-2 gap-3"><div><label class="text-sm">Datum *</label><input name="datum" type="date" required value="'+todayISO()+'" class="w-full px-3 py-2 border rounded-lg"></div>'+
-    '<div><label class="text-sm">Vrijeme</label><input name="vrijeme" type="time" value="08:00" class="w-full px-3 py-2 border rounded-lg"></div></div>'+
-    '<div><label class="text-sm">Šta će se ispitivati</label><textarea name="opis" class="w-full px-3 py-2 border rounded-lg h-24"></textarea></div>'+
-    '<div class="flex justify-end gap-2 pt-4"><button type="button" onclick="closeModal()" class="btn-secondary px-4 py-2 rounded-lg">Otkaži</button><button type="submit" class="btn-primary px-4 py-2 rounded-lg">Sačuvaj i obavijesti</button></div>'+
-    '</form>');
+    
+    // KOGA ISPITUJEMO
+    '<div class="bg-blue-50 border-2 border-blue-200 rounded-xl p-3">'+
+    '<label class="text-sm font-bold text-blue-900 block mb-2">👥 Koga ispitujemo?</label>'+
+    '<div class="space-y-2 mb-2">'+
+    '<label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="komeIspit" value="razred" '+(!ex||!ex.ucenikIds||!ex.ucenikIds.length?'checked':'')+' onchange="toggleUceniciSelect()" class="w-4 h-4"><span class="text-sm"><b>Cijeli razred</b> - svi učenici razreda</span></label>'+
+    '<label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="komeIspit" value="pojedinacno" '+(ex&&ex.ucenikIds&&ex.ucenikIds.length?'checked':'')+' onchange="toggleUceniciSelect()" class="w-4 h-4"><span class="text-sm"><b>Pojedinačno</b> - odabir učenika</span></label>'+
+    '</div>'+
+    '<div id="isfUcenici" class="'+(ex&&ex.ucenikIds&&ex.ucenikIds.length?'':'hidden')+' max-h-40 overflow-y-auto border rounded-lg p-2 bg-white">'+
+    '<div class="flex gap-2 mb-2"><button type="button" onclick="selektujSveUcenike(true)" class="text-xs text-blue-600 hover:underline">✓ Označi sve</button> | <button type="button" onclick="selektujSveUcenike(false)" class="text-xs text-blue-600 hover:underline">✗ Odznači sve</button></div>'+
+    '<div id="isfUceniciLista"></div>'+
+    '</div>'+
+    '</div>'+
+    
+    '<div class="grid grid-cols-2 gap-3">'+
+    '<div><label class="text-sm font-medium block mb-1">Datum *</label><input name="datum" type="date" required value="'+(ex?ex.datum:todayISO())+'" class="w-full px-3 py-2 border rounded-lg"></div>'+
+    '<div><label class="text-sm font-medium block mb-1">Vrijeme</label><input name="vrijeme" type="time" value="'+(ex?ex.vrijeme:'08:00')+'" class="w-full px-3 py-2 border rounded-lg"></div>'+
+    '</div>'+
+    '<div><label class="text-sm font-medium block mb-1">Šta će se ispitivati</label><textarea name="opis" class="w-full px-3 py-2 border rounded-lg h-24">'+escapeHtml(ex?(ex.opis||''):'')+'</textarea></div>'+
+    '<div class="flex justify-between gap-2 pt-4 border-t">'+
+    (id?'<button type="button" onclick="obrisiIspit('+id+')" class="btn-danger px-3 py-2 rounded-lg text-sm">🗑 Obriši</button>':'<div></div>')+
+    '<div class="flex gap-2"><button type="button" onclick="closeModal()" class="btn-secondary px-4 py-2 rounded-lg">Otkaži</button>'+
+    '<button type="submit" class="btn-primary px-4 py-2 rounded-lg">Sačuvaj i obavijesti</button></div>'+
+    '</div></form>');
+  
+  osvjeziUceniciSelect(ex ? ex.ucenikIds : null);
+  
   document.getElementById('isf').onsubmit = function(e) {
-    e.preventDefault(); const fd = new FormData(e.target);
-    const data = { id:Date.now(), nastavnikId:currentUser.id, naslov:fd.get('naslov'), predmet:fd.get('predmet'), razredId:+fd.get('razredId'), tip:fd.get('tip'), datum:fd.get('datum'), vrijeme:fd.get('vrijeme'), opis:fd.get('opis') };
-    DB.ispitivanja.push(data);
-    DB.ucenici.filter(u=>u.razredId===data.razredId).forEach(function(u){
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const komeIspit = fd.get('komeIspit');
+    const ucenikIds = komeIspit === 'pojedinacno' ? 
+      [].slice.call(document.querySelectorAll('.isfUcenikCb:checked')).map(c=>+c.value) : [];
+    if (komeIspit === 'pojedinacno' && !ucenikIds.length) {
+      showNotification('Odaberite barem jednog učenika!', 'error'); return;
+    }
+    const data = { 
+      naslov:fd.get('naslov'), predmet:fd.get('predmet'), razredId:+fd.get('razredId'),
+      tip:fd.get('tip'), datum:fd.get('datum'), vrijeme:fd.get('vrijeme'), opis:fd.get('opis'),
+      ucenikIds: ucenikIds // [] = svi
+    };
+    if (id) {
+      Object.assign(ex, data);
+    } else {
+      DB.ispitivanja.push(Object.assign({ id:Date.now(), nastavnikId:currentUser.id }, data));
+    }
+    // obavijesti
+    const ucenici = data.ucenikIds.length ? 
+      DB.ucenici.filter(u=>data.ucenikIds.indexOf(u.id)>=0) :
+      DB.ucenici.filter(u=>u.razredId===data.razredId);
+    ucenici.forEach(function(u){
       const usr = DB.users.find(x=>x.ucenikId===u.id);
-      if (usr) DB.obavijesti.push({ id:Date.now()+Math.random(), naslov:'⚠️ Najava: '+data.tip, tekst:data.predmet+' - '+data.naslov+' ('+fmtDate(data.datum)+')', datum:todayISO(), za:null, zaId:usr.id });
+      if (usr) DB.obavijesti.push({ 
+        id:Date.now()+Math.random(), 
+        naslov:'⚠️ Najava: '+data.tip, 
+        tekst:(data.ucenikIds.length?'POJEDINAČNO - ':'')+data.predmet+' - '+data.naslov+' ('+fmtDate(data.datum)+(data.vrijeme?' u '+data.vrijeme:'')+')', 
+        datum:todayISO(), za:null, zaId:usr.id 
+      });
     });
-    saveData(); closeModal(); navigate('ispitivanja'); showNotification('Ispit najavljen!');
+    saveData(); closeModal(); navigate('ispitivanja'); 
+    showNotification(id?'Ispit izmijenjen i obaviješteni':'Ispit najavljen i obaviješteni ('+ucenici.length+' učenika)');
   };
 }
-function obrisiIspit(id) { if (confirm('Obrisati?')) { DB.ispitivanja = DB.ispitivanja.filter(x=>x.id!==id); saveData(); navigate('ispitivanja'); } }
+
+function osvjeziUceniciSelect(preselected) {
+  const razredId = +(document.getElementById('isfRazred')?.value || DB.razredi[0]?.id);
+  const ucenici = DB.ucenici.filter(u=>u.razredId===razredId);
+  const cont = document.getElementById('isfUceniciLista');
+  if (!cont) return;
+  cont.innerHTML = ucenici.map(function(u){
+    const checked = preselected && preselected.indexOf(u.id)>=0 ? 'checked' : '';
+    return '<label class="flex items-center gap-2 p-1.5 hover:bg-gray-50 cursor-pointer rounded text-sm">'+
+      '<input type="checkbox" class="isfUcenikCb w-4 h-4" value="'+u.id+'" '+checked+'>'+
+      '<span>'+escapeHtml(u.prezime+' '+u.ime)+'</span></label>';
+  }).join('');
+}
+function toggleUceniciSelect() {
+  const radio = document.querySelector('input[name="komeIspit"]:checked');
+  if (!radio) return;
+  document.getElementById('isfUcenici').classList.toggle('hidden', radio.value!=='pojedinacno');
+}
+function selektujSveUcenike(svi) {
+  document.querySelectorAll('.isfUcenikCb').forEach(c=>c.checked=svi);
+}
+
+function obrisiIspit(id) { 
+  if (!confirm('Obrisati ispit?')) return;
+  DB.ispitivanja = DB.ispitivanja.filter(x=>x.id!==id); 
+  saveData(); closeModal(); navigate('ispitivanja'); 
+  showNotification('Ispit obrisan');
+}
+
+// ============= POPRAVNI ISPITI =============
+RENDERERS.popravni = function(c) {
+  if (!DB.popravni) DB.popravni = [];
+  let list = DB.popravni.slice();
+  
+  // Filter za nastavnika - samo svoje predmete
+  if (currentUser.role==='nastavnik') {
+    const mojiPredmeti = (currentUser.zaduzenja||[]).map(z=>z.predmet);
+    list = list.filter(p=>mojiPredmeti.indexOf(p.predmet)>=0 || p.nastavnikId===currentUser.id);
+  }
+  
+  const filter = document.getElementById('popFilter')?.value || 'svi';
+  if (filter==='zakazani') list = list.filter(p=>p.status==='zakazano');
+  else if (filter==='odrzani') list = list.filter(p=>p.status==='odrzano');
+  else if (filter==='propusteni') list = list.filter(p=>p.status==='propusteno');
+  
+  list.sort((a,b)=>(b.datum||'').localeCompare(a.datum||''));
+  
+  const ukupno = (currentUser.role==='admin'?DB.popravni:list).length;
+  const zakazanih = (currentUser.role==='admin'?DB.popravni:list).filter(p=>p.status==='zakazano').length;
+  
+  c.innerHTML = '<div class="flex flex-wrap justify-between items-center gap-3 mb-4">'+
+    '<div><h2 class="text-3xl font-bold">🎯 Popravni ispiti</h2>'+
+    '<p class="text-gray-500 text-sm mt-1">Ukupno: <b>'+ukupno+'</b> '+(zakazanih?' • <span class="text-yellow-700"><b>'+zakazanih+'</b> zakazano</span>':'')+'</p>'+
+    '</div>'+
+    (currentUser.role==='admin' || currentUser.role==='nastavnik'?'<button onclick="openPopravniModal()" class="btn-primary px-4 py-2 rounded-lg font-semibold">+ Zakaži popravni</button>':'')+
+    '</div>'+
+    '<div class="mb-4 flex flex-wrap gap-2 bg-white p-3 rounded-xl border">'+
+    '<select id="popFilter" onchange="navigate(\'popravni\')" class="px-3 py-2 border rounded-lg flex-1 max-w-xs">'+
+    '<option value="svi"'+(filter==='svi'?' selected':'')+'>Svi popravni</option>'+
+    '<option value="zakazani"'+(filter==='zakazani'?' selected':'')+'>📅 Zakazani</option>'+
+    '<option value="odrzani"'+(filter==='odrzani'?' selected':'')+'>✓ Održani</option>'+
+    '<option value="propusteni"'+(filter==='propusteni'?' selected':'')+'>✗ Propušteni</option>'+
+    '</select></div>'+
+    '<div class="space-y-3">'+
+    (list.length?list.map(function(p){
+      const u = DB.ucenici.find(x=>x.id===p.ucenikId);
+      if (!u) return '';
+      const dl = Math.ceil((new Date(p.datum)-new Date(todayISO()))/(1000*60*60*24));
+      const tipovi = getPopravniTipovi(p);
+      // pronađi sve ocjene za ovaj popravni (može biti više)
+      const sveOcj = DB.ocjene.filter(o=>o.ucenikId===p.ucenikId && o.predmet===p.predmet && o.popravniId===p.id);
+      const statColor = p.status==='zakazano'?'border-yellow-500 bg-yellow-50':p.status==='odrzano'?'border-green-500 bg-green-50':'border-red-500 bg-red-50';
+      const statTekst = p.status==='zakazano'?'📅 ZAKAZANO':p.status==='odrzano'?'✓ ODRŽAN':'✗ PROPUŠTEN';
+      const statBadge = p.status==='zakazano'?'bg-yellow-600':p.status==='odrzano'?'bg-green-600':'bg-red-600';
+      
+      return '<div class="bg-white border-l-4 '+statColor+' rounded-xl p-4 shadow-sm">'+
+        '<div class="flex justify-between items-start mb-3 flex-wrap gap-3">'+
+        '<div class="flex items-center gap-3">'+
+        '<div class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-white font-bold flex items-center justify-center">'+escapeHtml((u.ime[0]||'')+(u.prezime[0]||''))+'</div>'+
+        '<div>'+
+        '<h3 class="font-bold text-lg">'+escapeHtml(u.prezime+' '+u.ime)+'</h3>'+
+        '<p class="text-sm text-gray-600">'+escapeHtml(p.predmet)+' • '+getRazredName(u.razredId)+' • Semestar '+p.semestar+'</p>'+
+        '</div></div>'+
+        '<div class="flex flex-col items-end gap-1">'+
+        '<span class="badge '+statBadge+' text-white font-bold">'+statTekst+'</span>'+
+        '<div class="flex gap-1 flex-wrap justify-end">'+
+        tipovi.map(t=>'<span class="badge bg-purple-100 text-purple-700">'+tipIcon(t)+' '+t.toUpperCase()+'</span>').join('')+
+        '</div></div></div>'+
+        
+        '<div class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3 text-sm">'+
+        '<div class="bg-gray-50 p-2 rounded"><div class="text-xs text-gray-500">📅 Datum</div><div class="font-semibold">'+fmtDate(p.datum)+'</div>'+
+        (p.status==='zakazano' && dl>=0?'<div class="text-xs '+(dl<=1?'text-red-600 font-bold':dl<=3?'text-yellow-700':'text-gray-500')+'">'+(dl===0?'DANAS!':'za '+dl+' dana')+'</div>':'')+
+        '</div>'+
+        '<div class="bg-gray-50 p-2 rounded"><div class="text-xs text-gray-500">🕐 Vrijeme</div><div class="font-semibold">'+(p.vrijeme||'-')+'</div></div>'+
+        '<div class="bg-gray-50 p-2 rounded"><div class="text-xs text-gray-500">📍 Mjesto</div><div class="font-semibold">'+escapeHtml(p.mjesto||'-')+'</div></div>'+
+        '<div class="bg-gray-50 p-2 rounded"><div class="text-xs text-gray-500">👨‍🏫 Ispitivač</div><div class="font-semibold text-xs">'+escapeHtml(getNastavnikName(p.nastavnikId))+'</div></div>'+
+        '</div>'+
+        
+        (p.razlog?'<div class="bg-orange-50 border-l-2 border-orange-400 p-2 rounded mb-3 text-sm"><b>Razlog:</b> '+escapeHtml(p.razlog)+'</div>':'')+
+        (p.opis?'<div class="text-sm text-gray-700 mb-3 p-2 bg-gray-50 rounded">'+escapeHtml(p.opis)+'</div>':'')+
+        
+        // OCJENE (jedna ili više - po tipu)
+        (sveOcj.length?'<div class="bg-green-50 border border-green-300 rounded-lg p-3 mb-3">'+
+          '<b class="text-green-900 block mb-2">📝 Upisane ocjene ('+sveOcj.length+'):</b>'+
+          '<div class="space-y-1">'+sveOcj.map(function(o){
+            return '<div class="flex items-center justify-between bg-white p-2 rounded">'+
+              '<span class="text-sm"><b>'+(o.tipPopravnog?tipIcon(o.tipPopravnog)+' '+o.tipPopravnog.toUpperCase():o.tip.toUpperCase())+'</b> <span class="text-xs text-gray-500">('+fmtDate(o.datum)+')</span></span>'+
+              '<span class="ocjena-chip '+(o.vrijednost==='NPS'?'ocjena-NPS':'ocjena-'+o.vrijednost)+'" style="font-size:1.2rem;width:36px;height:36px;cursor:default">'+o.vrijednost+'</span>'+
+              '</div>';
+          }).join('')+'</div></div>':'')+
+        
+        '<div class="flex flex-wrap justify-between items-center pt-2 border-t gap-2">'+
+        '<span class="text-xs text-gray-500">Postavio: '+escapeHtml(getNastavnikName(p.postavioId||p.nastavnikId))+'</span>'+
+        '<div class="flex gap-2 flex-wrap">'+
+        (currentUser.role==='nastavnik' && p.nastavnikId===currentUser.id && p.status==='zakazano' ? '<button onclick="upisOcjenuPopravni('+p.id+')" class="btn-success px-3 py-1.5 rounded text-sm font-semibold">📝 Upiši ocjenu</button>' : '')+
+        (currentUser.role==='nastavnik' && p.nastavnikId===currentUser.id && p.status==='zakazano' ? '<button onclick="oznaciPropusten('+p.id+')" class="btn-danger px-3 py-1.5 rounded text-sm">✗ Propustio</button>' : '')+
+        ((currentUser.role==='admin' || (currentUser.role==='nastavnik' && p.nastavnikId===currentUser.id))?'<button onclick="openPopravniModal('+p.id+')" class="btn-secondary px-3 py-1.5 rounded text-sm">✎ Uredi</button>':'')+
+        (currentUser.role==='admin'?'<button onclick="obrisiPopravni('+p.id+')" class="text-red-600 hover:bg-red-50 px-3 py-1.5 rounded text-sm">🗑</button>':'')+
+        '</div></div>'+
+        '</div>';
+    }).join(''):'<div class="empty-state">Nema popravnih ispita</div>')+
+    '</div>'+
+    '<div class="mt-4 bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-800">'+
+    '<b>ℹ️ O popravnim ispitima:</b> Admin ili nastavnik zakazuje popravni za pojedinačnog učenika sa tipom (pismeno/usmeno/praksa). Nakon ispita, nastavnik upisuje ocjenu direktno iz ovog ekrana.'+
+    '</div>';
+};
+
+function openPopravniModal(id) {
+  if (!DB.popravni) DB.popravni = [];
+  const p = id ? DB.popravni.find(x=>x.id===id) : null;
+  const dostupniPredmeti = currentUser.role==='admin' ? DB.predmeti : (currentUser.zaduzenja||[]).map(z=>z.predmet);
+  if (!dostupniPredmeti.length) DB.predmeti.forEach(pp=>dostupniPredmeti.push(pp));
+  
+  // dostupni nastavnici za predmet
+  let dostupniNastavnici = DB.users.filter(u=>u.role==='nastavnik');
+  
+  showModal('<h3 class="text-xl font-bold mb-4">🎯 '+(id?'Uredi popravni ispit':'Zakaži popravni ispit')+'</h3>'+
+    '<form id="popf" class="space-y-3">'+
+    
+    // PREDMET I UČENIK
+    '<div class="grid grid-cols-2 gap-3">'+
+    '<div><label class="text-sm font-medium block mb-1">Predmet *</label>'+
+    '<select name="predmet" id="popPredmet" required class="w-full px-3 py-2 border rounded-lg">'+dostupniPredmeti.map(pp=>'<option'+(p&&pp===p.predmet?' selected':'')+'>'+pp+'</option>').join('')+'</select></div>'+
+    '<div><label class="text-sm font-medium block mb-1">Semestar *</label>'+
+    '<select name="semestar" required class="w-full px-3 py-2 border rounded-lg">'+
+    (DB.semestri||[{broj:1,naziv:'Prvi'},{broj:2,naziv:'Drugi'}]).map(s=>'<option value="'+s.broj+'"'+(p&&s.broj===p.semestar?' selected':'')+'>'+s.naziv+' (#'+s.broj+')</option>').join('')+
+    '</select></div>'+
+    '</div>'+
+    
+    '<div><label class="text-sm font-medium block mb-1">Učenik *</label>'+
+    '<select name="ucenikId" required class="w-full px-3 py-2 border rounded-lg">'+
+    '<option value="">-- odaberi učenika --</option>'+
+    DB.ucenici.slice().sort((a,b)=>a.prezime.localeCompare(b.prezime)).map(function(u){
+      return '<option value="'+u.id+'"'+(p&&u.id===p.ucenikId?' selected':'')+'>'+escapeHtml(u.prezime+' '+u.ime)+' ('+getRazredName(u.razredId)+')</option>';
+    }).join('')+
+    '</select></div>'+
+    
+    // TIP ISPITA - više opcija (checkboxes)
+    '<div class="bg-purple-50 border-2 border-purple-200 rounded-xl p-3">'+
+    '<label class="text-sm font-bold text-purple-900 block mb-2">📋 Tipovi ispita * (možeš odabrati više)</label>'+
+    '<div class="grid grid-cols-3 gap-2">'+
+    (function(){
+      // backward compat: ako postoji stari tipIspita, koristi ga
+      const tipovi = p ? (p.tipoviIspita || (p.tipIspita?[p.tipIspita]:[])) : ['pismeno'];
+      const opcije = [
+        ['pismeno','📝','Pismeno'],
+        ['usmeno','🗣','Usmeno'],
+        ['praksa','🛠','Praksa']
+      ];
+      return opcije.map(function(o){
+        const chk = tipovi.indexOf(o[0])>=0 ? 'checked' : '';
+        return '<label class="flex items-center gap-2 p-3 bg-white border-2 rounded-lg cursor-pointer hover:border-purple-500 has-[:checked]:border-purple-600 has-[:checked]:bg-purple-100">'+
+          '<input type="checkbox" name="tipovi" value="'+o[0]+'" '+chk+' class="w-4 h-4">'+
+          '<div><div class="text-xl">'+o[1]+'</div><b class="text-sm">'+o[2]+'</b></div></label>';
+      }).join('');
+    })()+
+    '</div>'+
+    '<p class="text-xs text-purple-700 mt-2">💡 Ako je više tipova - upisat će se zasebne ocjene za svaki</p>'+
+    '</div>'+
+    
+    // DATUM I VRIJEME
+    '<div class="grid grid-cols-3 gap-3">'+
+    '<div><label class="text-sm font-medium block mb-1">Datum *</label><input name="datum" type="date" required value="'+(p?p.datum:todayISO())+'" class="w-full px-3 py-2 border rounded-lg"></div>'+
+    '<div><label class="text-sm font-medium block mb-1">Vrijeme</label><input name="vrijeme" type="time" value="'+(p?(p.vrijeme||'10:00'):'10:00')+'" class="w-full px-3 py-2 border rounded-lg"></div>'+
+    '<div><label class="text-sm font-medium block mb-1">Mjesto</label><input name="mjesto" value="'+escapeHtml(p?(p.mjesto||''):'')+'" class="w-full px-3 py-2 border rounded-lg" placeholder="npr. uč. 12"></div>'+
+    '</div>'+
+    
+    // ISPITIVAČ
+    '<div><label class="text-sm font-medium block mb-1">Ispitivač (nastavnik) *</label>'+
+    '<select name="nastavnikId" required class="w-full px-3 py-2 border rounded-lg">'+
+    dostupniNastavnici.map(n=>'<option value="'+n.id+'"'+(p&&n.id===p.nastavnikId?' selected':(!p&&n.id===currentUser.id?' selected':''))+'>'+n.name+'</option>').join('')+
+    '</select></div>'+
+    
+    // RAZLOG
+    '<div><label class="text-sm font-medium block mb-1">Razlog popravnog *</label>'+
+    '<select name="razlog" class="w-full px-3 py-2 border rounded-lg" onchange="if(this.value===\'Drugo\'){document.getElementById(\'popOpis\').focus()}">'+
+    ['Slaba ocjena','Nepoložen ispit','Nedolazak na redovan ispit','Bolest','Žalba na ocjenu','Drugo'].map(r=>'<option'+(p&&p.razlog===r?' selected':'')+'>'+r+'</option>').join('')+
+    '</select></div>'+
+    
+    '<div><label class="text-sm font-medium block mb-1">Dodatne napomene</label>'+
+    '<textarea name="opis" id="popOpis" class="w-full px-3 py-2 border rounded-lg h-20" placeholder="Šta učenik mora pripremiti...">'+escapeHtml(p?(p.opis||''):'')+'</textarea></div>'+
+    
+    '<div class="flex justify-between gap-2 pt-4 border-t">'+
+    (id?'<button type="button" onclick="obrisiPopravni('+id+')" class="btn-danger px-3 py-2 rounded-lg text-sm">🗑 Obriši</button>':'<div></div>')+
+    '<div class="flex gap-2"><button type="button" onclick="closeModal()" class="btn-secondary px-4 py-2 rounded-lg">Otkaži</button>'+
+    '<button type="submit" class="btn-primary px-4 py-2 rounded-lg font-semibold">Zakaži i obavijesti</button></div>'+
+    '</div></form>');
+  
+  document.getElementById('popf').onsubmit = function(e){
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const tipovi = fd.getAll('tipovi');
+    if (!tipovi.length) { showNotification('Odaberite barem jedan tip ispita!','error'); return; }
+    const data = {
+      ucenikId: +fd.get('ucenikId'),
+      predmet: fd.get('predmet'),
+      tipoviIspita: tipovi, // niz - može biti više
+      razlog: fd.get('razlog'),
+      datum: fd.get('datum'),
+      vrijeme: fd.get('vrijeme'),
+      mjesto: fd.get('mjesto'),
+      semestar: +fd.get('semestar'),
+      status: p?p.status:'zakazano',
+      nastavnikId: +fd.get('nastavnikId'),
+      opis: fd.get('opis')
+    };
+    if (id) {
+      Object.assign(p, data);
+      // ukloni stari tipIspita ako postoji
+      delete p.tipIspita;
+    } else {
+      data.id = Date.now();
+      data.postavioId = currentUser.id;
+      DB.popravni.push(data);
+    }
+    const tipoviStr = tipovi.map(t=>t.toUpperCase()).join('+');
+    // obavještenja
+    const ucenik = DB.ucenici.find(u=>u.id===data.ucenikId);
+    const usr = DB.users.find(x=>x.ucenikId===data.ucenikId);
+    if (usr) DB.obavijesti.push({ 
+      id:Date.now()+1, 
+      naslov:'🎯 Zakazan POPRAVNI ispit', 
+      tekst:data.predmet+' ('+tipoviStr+') - '+fmtDate(data.datum)+' u '+data.vrijeme+(data.mjesto?', '+data.mjesto:''), 
+      datum:todayISO(), za:null, zaId:usr.id 
+    });
+    // nastavnik
+    if (data.nastavnikId !== currentUser.id) {
+      DB.obavijesti.push({ 
+        id:Date.now()+2, 
+        naslov:'🎯 Dodijeljen popravni ispit', 
+        tekst:'Ispitivat ćete '+ucenik.prezime+' '+ucenik.ime+' ('+data.predmet+', '+tipoviStr+') '+fmtDate(data.datum), 
+        datum:todayISO(), za:null, zaId:data.nastavnikId 
+      });
+    }
+    // razrednik
+    const razrednik = DB.users.find(usr=>usr.role==='nastavnik' && usr.razrednikRazredId===ucenik.razredId);
+    if (razrednik && razrednik.id !== currentUser.id && razrednik.id !== data.nastavnikId) {
+      DB.obavijesti.push({ 
+        id:Date.now()+3, 
+        naslov:'🎯 Popravni ispit u vašem razredu', 
+        tekst:ucenik.prezime+' '+ucenik.ime+' - '+data.predmet+' ('+tipoviStr+') '+fmtDate(data.datum), 
+        datum:todayISO(), za:null, zaId:razrednik.id 
+      });
+    }
+    saveData(); closeModal(); navigate('popravni'); 
+    showNotification(id?'Popravni izmijenjen':'Popravni ispit zakazan i obaviješteni!');
+  };
+}
+
+// Helper - vraća listu tipova za popravni (kompatibilan sa starim formatom)
+function getPopravniTipovi(p) {
+  if (!p) return [];
+  if (p.tipoviIspita && p.tipoviIspita.length) return p.tipoviIspita;
+  if (p.tipIspita) return [p.tipIspita];
+  return [];
+}
+function tipIcon(t) {
+  return t==='pismeno'?'📝':t==='usmeno'?'🗣':t==='praksa'?'🛠':'📋';
+}
+function tipOcjeneOd(t) {
+  // pismeno/kontrolni/test → pismena, usmeno → usmena, praksa → aktivnost
+  if (t==='pismeno' || t==='kontrolni' || t==='test') return 'pismena';
+  if (t==='usmeno') return 'usmena';
+  return 'aktivnost';
+}
+
+function obrisiPopravni(id) {
+  if (!confirm('🗑 Obrisati popravni ispit? Ako ima ocjenu, ona ostaje upisana u dnevnik.')) return;
+  DB.popravni = DB.popravni.filter(p=>p.id!==id);
+  saveData(); closeModal(); navigate('popravni'); showNotification('Popravni obrisan');
+}
+
+function oznaciPropusten(id) {
+  const p = DB.popravni.find(x=>x.id===id);
+  if (!p) return;
+  if (!confirm('Učenik propustio popravni? Označit će se kao propušten.')) return;
+  p.status = 'propusteno';
+  const usr = DB.users.find(x=>x.ucenikId===p.ucenikId);
+  if (usr) DB.obavijesti.push({ id:Date.now(), naslov:'✗ Propušten popravni', tekst:p.predmet+' ('+p.tipIspita+') - '+fmtDate(p.datum), datum:todayISO(), za:null, zaId:usr.id });
+  saveData(); navigate('popravni'); showNotification('Označen kao propušten');
+}
+
+function upisOcjenuPopravni(id) {
+  const p = DB.popravni.find(x=>x.id===id);
+  if (!p) return;
+  const sem = getCurrentSemester();
+  if (isSemesterZatvoren(sem)) {
+    const semInfo = getSemesterInfo(sem);
+    showNotification('🔒 '+(semInfo?semInfo.naziv:'Semestar')+' je ZATVOREN. Admin mora otvoriti.', 'error'); return;
+  }
+  const u = DB.ucenici.find(x=>x.id===p.ucenikId);
+  if (!u) return;
+  const tipovi = getPopravniTipovi(p);
+  if (!tipovi.length) { showNotification('Popravni nema definisanih tipova','error'); return; }
+  
+  // sve postojeće ocjene za svaki tip
+  let html = '<h3 class="text-xl font-bold mb-1">🎯 Upiši ocjene - POPRAVNI</h3>'+
+    '<p class="text-sm text-gray-600 mb-1">Učenik: <b>'+escapeHtml(u.prezime+' '+u.ime)+'</b></p>'+
+    '<p class="text-sm text-gray-600 mb-4">'+escapeHtml(p.predmet)+' • '+fmtDate(p.datum)+'</p>';
+  
+  // Za SVAKI tip - panel sa ocjenama
+  tipovi.forEach(function(tip){
+    const tipOcj = tipOcjeneOd(tip);
+    const postOcj = DB.ocjene.find(o=>o.ucenikId===p.ucenikId && o.predmet===p.predmet && o.popravniId===p.id && o.tipPopravnog===tip);
+    html += '<div class="bg-purple-50 border-2 border-purple-200 rounded-xl p-3 mb-3">'+
+      '<div class="flex justify-between items-center mb-2">'+
+      '<b class="text-purple-900 text-lg">'+tipIcon(tip)+' '+tip.toUpperCase()+'</b>'+
+      '<span class="text-xs text-purple-700">upisuje se kao <b>'+tipOcj.toUpperCase()+'</b></span>'+
+      '</div>'+
+      (postOcj?'<div class="bg-green-50 border border-green-300 rounded p-2 mb-2 text-sm flex justify-between items-center">'+
+        '<span>✓ Već upisana: <b>'+postOcj.vrijednost+'</b></span>'+
+        '<button onclick="ukloniPopravnuOcjenu('+p.id+',\''+tip+'\')" class="text-red-600 hover:underline text-xs">Ukloni</button>'+
+        '</div>':'')+
+      '<div class="grid grid-cols-5 gap-1 mb-1">'+
+      [1,2,3,4,5].map(v=>'<button onclick="postaviPopravniOcjenu('+p.id+',\''+tip+'\','+v+')" class="ocjena-chip ocjena-'+v+(postOcj&&postOcj.vrijednost==v?' ring-2 ring-blue-600':'')+'" style="height:48px;font-size:1.4rem">'+v+'</button>').join('')+
+      '</div>'+
+      '<button onclick="postaviPopravniOcjenu('+p.id+',\''+tip+'\',\'NPS\')" class="ocjena-chip ocjena-NPS w-full'+(postOcj&&postOcj.vrijednost==='NPS'?' ring-2 ring-blue-600':'')+'" style="height:36px;font-size:.85rem">NPS - Nije pristupio</button>'+
+      '</div>';
+  });
+  
+  html += '<div class="flex justify-end mt-4 pt-3 border-t">'+
+    '<button onclick="closeModal()" class="btn-primary px-4 py-2 rounded-lg font-semibold">Završi</button>'+
+    '</div>';
+  showModal(html);
+}
+
+function postaviPopravniOcjenu(popravniId, tip, vrijednost) {
+  const p = DB.popravni.find(x=>x.id===popravniId);
+  if (!p) return;
+  const sem = getCurrentSemester();
+  if (isSemesterZatvoren(sem)) { showNotification('🔒 Semestar zatvoren', 'error'); return; }
+  const tipOcjene = tipOcjeneOd(tip);
+  // Ukloni postojeću za ovaj tip
+  DB.ocjene = DB.ocjene.filter(o=>!(o.ucenikId===p.ucenikId && o.predmet===p.predmet && o.popravniId===popravniId && o.tipPopravnog===tip));
+  // Dodaj novu
+  DB.ocjene.push({
+    id: Date.now()+Math.random(),
+    ucenikId: p.ucenikId,
+    predmet: p.predmet,
+    tip: tipOcjene,
+    vrijednost: vrijednost,
+    datum: p.datum,
+    semestar: p.semestar || sem,
+    nastavnikId: currentUser.id,
+    zamjenjuje: null,
+    zamjenjeno: false,
+    zakljucna: false,
+    popravniId: popravniId,
+    tipPopravnog: tip,
+    biljeska: 'Iz popravnog ('+tip+')'
+  });
+  // status - održan ako su SVI tipovi ocijenjeni
+  const tipovi = getPopravniTipovi(p);
+  const sveOcjene = DB.ocjene.filter(o=>o.popravniId===popravniId);
+  if (sveOcjene.length >= tipovi.length) {
+    p.status = 'odrzano';
+  }
+  // obavjestenje uceniku
+  const usr = DB.users.find(u=>u.ucenikId===p.ucenikId);
+  if (usr) DB.obavijesti.push({ 
+    id:Date.now()+1, 
+    naslov:'⭐ Ocjena iz POPRAVNOG ('+tip+')', 
+    tekst:p.predmet+': '+vrijednost, 
+    datum:todayISO(), za:null, zaId:usr.id 
+  });
+  saveData();
+  showNotification('✓ Ocjena '+vrijednost+' upisana ('+tip+')!');
+  // Re-render modal
+  upisOcjenuPopravni(popravniId);
+}
+
+function ukloniPopravnuOcjenu(popravniId, tip) {
+  if (!confirm('Ukloniti ocjenu iz dnevnika?')) return;
+  const p = DB.popravni.find(x=>x.id===popravniId);
+  DB.ocjene = DB.ocjene.filter(o=>!(o.ucenikId===p.ucenikId && o.predmet===p.predmet && o.popravniId===popravniId && o.tipPopravnog===tip));
+  saveData();
+  upisOcjenuPopravni(popravniId);
+}
+
+// UČENIK - moji popravni
+RENDERERS.mojipopravni = function(c) {
+  const u = DB.ucenici.find(x=>x.id===currentUser.ucenikId);
+  if (!u) { c.innerHTML='<div class="empty-state">Nema povezanog učenika</div>'; return; }
+  const mojiPopravni = (DB.popravni||[]).filter(p=>p.ucenikId===u.id).sort((a,b)=>(b.datum||'').localeCompare(a.datum||''));
+  const zakazanih = mojiPopravni.filter(p=>p.status==='zakazano').length;
+  
+  c.innerHTML = '<h2 class="text-3xl font-bold mb-4">🎯 Moji popravni ispiti</h2>'+
+    (zakazanih?'<div class="bg-yellow-50 border-l-4 border-yellow-500 rounded-xl p-4 mb-4"><b class="text-yellow-900">⚠ Imate '+zakazanih+' zakazan'+(zakazanih===1?'':'a')+' popravni ispit'+(zakazanih===1?'':'a')+'!</b><p class="text-sm text-yellow-800 mt-1">Pripremite se na vrijeme.</p></div>':'')+
+    '<div class="space-y-3">'+
+    (mojiPopravni.length?mojiPopravni.map(function(p){
+      const dl = Math.ceil((new Date(p.datum)-new Date(todayISO()))/(1000*60*60*24));
+      const tipovi = getPopravniTipovi(p);
+      const sveOcj = DB.ocjene.filter(o=>o.ucenikId===p.ucenikId && o.predmet===p.predmet && o.popravniId===p.id);
+      const statColor = p.status==='zakazano'?'border-yellow-500':p.status==='odrzano'?'border-green-500':'border-red-500';
+      return '<div class="bg-white border-l-4 '+statColor+' rounded-xl p-4 shadow-sm">'+
+        '<div class="flex justify-between items-start mb-2 flex-wrap gap-2">'+
+        '<div><h3 class="font-bold text-lg">'+escapeHtml(p.predmet)+'</h3>'+
+        '<p class="text-sm text-gray-600">'+tipovi.map(t=>tipIcon(t)+' '+t.toUpperCase()).join(' + ')+' • '+(p.razlog||'-')+'</p></div>'+
+        '<span class="badge '+(p.status==='zakazano'?'bg-yellow-600':p.status==='odrzano'?'bg-green-600':'bg-red-600')+' text-white font-bold">'+(p.status==='zakazano'?'ZAKAZANO':p.status==='odrzano'?'ODRŽAN':'PROPUŠTEN')+'</span>'+
+        '</div>'+
+        '<div class="grid grid-cols-3 gap-2 mb-2 text-sm">'+
+        '<div class="bg-gray-50 p-2 rounded"><div class="text-xs text-gray-500">📅 Datum</div><b>'+fmtDate(p.datum)+'</b>'+
+        (p.status==='zakazano' && dl>=0?'<div class="text-xs '+(dl<=1?'text-red-600 font-bold':'text-gray-600')+'">'+(dl===0?'DANAS!':'za '+dl+'d')+'</div>':'')+
+        '</div>'+
+        '<div class="bg-gray-50 p-2 rounded"><div class="text-xs text-gray-500">🕐</div><b>'+(p.vrijeme||'-')+'</b></div>'+
+        '<div class="bg-gray-50 p-2 rounded"><div class="text-xs text-gray-500">📍</div><b>'+escapeHtml(p.mjesto||'-')+'</b></div>'+
+        '</div>'+
+        '<div class="text-xs text-gray-500 mb-2">Ispitivač: <b>'+escapeHtml(getNastavnikName(p.nastavnikId))+'</b></div>'+
+        (p.opis?'<div class="text-sm text-gray-700 p-2 bg-gray-50 rounded mb-2">'+escapeHtml(p.opis)+'</div>':'')+
+        (sveOcj.length?'<div class="bg-green-50 border border-green-300 rounded p-2"><b class="text-green-900 text-sm block mb-1">Vaše ocjene:</b>'+
+          sveOcj.map(o=>'<div class="flex justify-between items-center bg-white p-1.5 rounded mb-1"><span class="text-sm">'+(o.tipPopravnog?tipIcon(o.tipPopravnog)+' '+o.tipPopravnog.toUpperCase():o.tip)+'</span><span class="ocjena-chip '+(o.vrijednost==='NPS'?'ocjena-NPS':'ocjena-'+o.vrijednost)+'" style="font-size:1.1rem;width:32px;height:32px;cursor:default">'+o.vrijednost+'</span></div>').join('')+
+          '</div>':'')+
+        '</div>';
+    }).join(''):'<div class="empty-state">Nemate popravnih ispita</div>')+
+    '</div>';
+};
 
 // ----- REDARI -----
 RENDERERS.redari = function(c) {
@@ -2998,19 +3661,48 @@ RENDERERS.mojiraspored = function(c) {
 RENDERERS.mojiispiti = function(c) {
   const u = DB.ucenici.find(x=>x.id===currentUser.ucenikId);
   if (!u) { c.innerHTML='<div class="empty-state">Nema učenika</div>'; return; }
-  const list = DB.ispitivanja.filter(i=>i.razredId===u.razredId && new Date(i.datum)>=new Date(todayISO())).sort((a,b)=>a.datum.localeCompare(b.datum));
-  c.innerHTML = '<h2 class="text-3xl font-bold mb-6">⚠️ Najave ispita</h2>'+
+  // Filtriraj - svi za moj razred + svi za mene pojedinačno
+  const list = DB.ispitivanja.filter(function(i){
+    if (i.razredId!==u.razredId) return false;
+    if (new Date(i.datum)<new Date(todayISO())) return false;
+    if (i.ucenikIds && i.ucenikIds.length) return i.ucenikIds.indexOf(u.id)>=0;
+    return true;
+  }).sort((a,b)=>a.datum.localeCompare(b.datum));
+  
+  const pojedinacni = list.filter(i=>i.ucenikIds && i.ucenikIds.length);
+  const grupni = list.filter(i=>!i.ucenikIds || !i.ucenikIds.length);
+  
+  let html = '<h2 class="text-3xl font-bold mb-4">⚠️ Najave ispita</h2>';
+  
+  if (pojedinacni.length) {
+    html += '<div class="bg-purple-50 border-2 border-purple-300 rounded-xl p-4 mb-4">'+
+      '<h3 class="font-bold text-purple-900 mb-3">👤 Pojedinačni ispiti za VAS ('+pojedinacni.length+')</h3>'+
+      '<div class="grid md:grid-cols-2 gap-3">'+
+      pojedinacni.map(function(isp){
+        const dl = Math.ceil((new Date(isp.datum)-new Date(todayISO()))/(1000*60*60*24));
+        return '<div class="bg-white border-l-4 border-purple-500 rounded-xl p-4">'+
+          '<div class="flex justify-between mb-2"><div><h3 class="font-bold">'+escapeHtml(isp.naslov)+'</h3><p class="text-sm text-gray-600">'+escapeHtml(isp.predmet)+'</p></div>'+
+          '<span class="badge bg-purple-600 text-white font-bold">'+isp.tip.toUpperCase()+'</span></div>'+
+          '<div class="flex gap-4 text-sm"><span>📅 <b>'+fmtDate(isp.datum)+'</b></span><span>🕐 '+isp.vrijeme+'</span><span class="ml-auto badge '+(dl<=1?'bg-red-100 text-red-700':dl<=3?'bg-yellow-100 text-yellow-700':'bg-green-100 text-green-700')+'">'+(dl===0?'DANAS!':dl+'d')+'</span></div>'+
+          (isp.opis?'<p class="text-sm text-gray-700 mt-2 pt-2 border-t">'+escapeHtml(isp.opis)+'</p>':'')+
+          '</div>';
+      }).join('')+
+      '</div></div>';
+  }
+  
+  html += '<h3 class="font-bold text-lg mb-3">👥 Grupni ispiti (cijeli razred)</h3>'+
     '<div class="grid md:grid-cols-2 gap-4">'+
-    (list.length?list.map(function(isp){
+    (grupni.length?grupni.map(function(isp){
       const dl = Math.ceil((new Date(isp.datum)-new Date(todayISO()))/(1000*60*60*24));
-      return '<div class="bg-white border-l-4 '+(isp.tip==='pismeno'?'border-red-500':isp.tip==='usmeno'?'border-orange-500':isp.tip==='kontrolni'?'border-yellow-500':'border-blue-500')+' rounded-xl p-5">'+
+      return '<div class="bg-white border-l-4 '+(isp.tip==='pismeno'?'border-red-500':isp.tip==='usmeno'?'border-orange-500':isp.tip==='kontrolni'?'border-yellow-500':isp.tip==='praksa'?'border-purple-500':'border-blue-500')+' rounded-xl p-5">'+
         '<div class="flex justify-between mb-2"><div><h3 class="font-bold">'+escapeHtml(isp.naslov)+'</h3><p class="text-sm text-gray-600">'+escapeHtml(isp.predmet)+'</p></div>'+
         '<span class="badge bg-blue-100 text-blue-700">'+isp.tip.toUpperCase()+'</span></div>'+
         '<div class="flex gap-4 text-sm"><span>📅 '+fmtDate(isp.datum)+'</span><span>🕐 '+isp.vrijeme+'</span><span class="ml-auto badge '+(dl<=1?'bg-red-100 text-red-700':dl<=3?'bg-yellow-100 text-yellow-700':'bg-green-100 text-green-700')+'">'+(dl===0?'DANAS!':dl+'d')+'</span></div>'+
         (isp.opis?'<p class="text-sm text-gray-700 mt-2 pt-2 border-t">'+escapeHtml(isp.opis)+'</p>':'')+
         '</div>';
-    }).join(''):'<div class="empty-state col-span-2">Nema najavljenih ispita</div>')+
+    }).join(''):'<div class="empty-state col-span-2">Nema grupnih ispita</div>')+
     '</div>';
+  c.innerHTML = html;
 };
 
 // UČENIK: materijali
