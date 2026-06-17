@@ -156,6 +156,133 @@
   .rasp-time.extended { background:linear-gradient(135deg,#fef3c7,#fde68a); color:#92400e; border:2px dashed #f59e0b; }
   .rasp-time.extended .num { color:#92400e; }
   .rasp-time.extended::after { content:'+'; position:absolute; font-size:0.5rem; }
+  
+  /* ============== eSVESKA ============== */
+  .sveska-page {
+    background: linear-gradient(to bottom, #fefce8 0%, #fefce8 100%);
+    background-image: 
+      linear-gradient(transparent 30px, #93c5fd 30px, #93c5fd 31px, transparent 31px),
+      repeating-linear-gradient(transparent, transparent 27px, #cbd5e1 27px, #cbd5e1 28px);
+    background-size: 100% 28px;
+    padding: 30px 30px 30px 60px;
+    position: relative;
+    min-height: 500px;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08), inset 0 0 30px rgba(251,191,36,0.05);
+    font-family: 'Comic Sans MS', 'Segoe Script', 'Caveat', cursive;
+    font-size: 18px;
+    line-height: 28px;
+    color: #1e3a8a;
+  }
+  .sveska-page::before {
+    content: '';
+    position: absolute;
+    left: 45px; top: 0; bottom: 0;
+    width: 2px;
+    background: #f87171;
+  }
+  .sveska-editor {
+    background: transparent;
+    border: none;
+    outline: none;
+    width: 100%;
+    min-height: 450px;
+    resize: none;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    color: inherit;
+    padding: 0;
+  }
+  .sveska-editor:focus { outline: none; }
+  .sveska-toolbar {
+    background: linear-gradient(135deg, #1e40af, #2563eb);
+    color: white;
+    padding: 10px 12px;
+    border-radius: 12px 12px 0 0;
+    display: flex; flex-wrap: wrap; gap: 4px; align-items: center;
+    position: sticky; top: 0; z-index: 10;
+  }
+  .sveska-toolbar button {
+    background: rgba(255,255,255,0.15);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.2);
+    padding: 5px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    min-width: 32px;
+    transition: all .15s;
+  }
+  .sveska-toolbar button:hover { background: rgba(255,255,255,0.3); }
+  .sveska-toolbar button.active { background: white; color: #1e40af; }
+  .sveska-toolbar .sep { width: 1px; background: rgba(255,255,255,0.3); margin: 0 4px; align-self: stretch; }
+  .sveska-toolbar select { background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.2); padding: 4px 8px; border-radius: 6px; font-size: 13px; }
+  .sveska-toolbar select option { color: black; }
+  
+  .sveska-page[contenteditable] ul { list-style: disc; padding-left: 24px; }
+  .sveska-page[contenteditable] ol { list-style: decimal; padding-left: 24px; }
+  .sveska-page[contenteditable] h1 { font-size: 28px; font-weight: bold; }
+  .sveska-page[contenteditable] h2 { font-size: 22px; font-weight: bold; }
+  .sveska-page[contenteditable] h3 { font-size: 18px; font-weight: bold; }
+  .sveska-page[contenteditable] blockquote { border-left: 4px solid #f59e0b; padding-left: 12px; margin: 8px 0; background: rgba(245,158,11,0.1); }
+  .sveska-page[contenteditable] code { background: rgba(0,0,0,0.08); padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 16px; }
+  
+  /* Boje sveski (kartica) */
+  .sveska-card { transition: all .15s; cursor: pointer; }
+  .sveska-card:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
+  .sveska-color-zuta { background: linear-gradient(135deg,#fef9c3,#fde68a); border-color: #f59e0b; }
+  .sveska-color-plava { background: linear-gradient(135deg,#dbeafe,#bfdbfe); border-color: #2563eb; }
+  .sveska-color-roze { background: linear-gradient(135deg,#fce7f3,#fbcfe8); border-color: #ec4899; }
+  .sveska-color-zelena { background: linear-gradient(135deg,#dcfce7,#bbf7d0); border-color: #16a34a; }
+  .sveska-color-narandzasta { background: linear-gradient(135deg,#ffedd5,#fed7aa); border-color: #ea580c; }
+  .sveska-color-ljubicasta { background: linear-gradient(135deg,#ede9fe,#ddd6fe); border-color: #7c3aed; }
+  
+  /* ============== BILJEŽNICA (Mali dnevnik) ============== */
+  .biljeznica-grid {
+    background: white;
+    border: 2px solid #1e40af;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .biljeznica-grid table { width: 100%; border-collapse: collapse; }
+  .biljeznica-grid th { background: #1e40af; color: white; padding: 10px 6px; font-size: 0.75rem; border: 1px solid #1e3a8a; text-align: center; }
+  .biljeznica-grid th.ucenik-col { text-align: left; padding-left: 16px; min-width: 180px; }
+  .biljeznica-grid td { padding: 4px; border: 1px solid #e5e7eb; text-align: center; vertical-align: middle; }
+  .biljeznica-grid td.ucenik-col { text-align: left; padding-left: 16px; font-weight: 600; background: #f9fafb; }
+  .biljeznica-grid tr:hover td { background: #eff6ff; }
+  .biljeznica-grid tr:hover td.ucenik-col { background: #dbeafe; }
+  
+  /* Brze oznake u bilježnici */
+  .ozn-btn {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    border: 2px solid #cbd5e1;
+    background: white;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 1.1rem;
+    transition: all .15s;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .ozn-btn:hover { transform: scale(1.15); }
+  .ozn-btn.aktivna { transform: scale(1.1); box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+  .ozn-plus { background:#dcfce7; color:#15803d; border-color:#15803d; }
+  .ozn-plus.aktivna { background:#15803d; color:white; }
+  .ozn-minus { background:#fecaca; color:#b91c1c; border-color:#b91c1c; }
+  .ozn-minus.aktivna { background:#b91c1c; color:white; }
+  .ozn-krug { background:#fef3c7; color:#a16207; border-color:#a16207; }
+  .ozn-krug.aktivna { background:#a16207; color:white; }
+  .ozn-zvjezdica { background:#e0e7ff; color:#4338ca; border-color:#4338ca; }
+  .ozn-zvjezdica.aktivna { background:#4338ca; color:white; }
+  .ozn-clear { background:#f1f5f9; color:#64748b; border-color:#94a3b8; font-size:.8rem; }
+  
+  @media (max-width: 768px) {
+    .sveska-page { padding: 20px 15px 20px 40px; font-size: 16px; }
+    .sveska-page::before { left: 28px; }
+    .sveska-toolbar button { padding: 4px 6px; font-size: 12px; min-width: 28px; }
+    .ozn-btn { width: 28px; height: 28px; font-size: 1rem; }
+  }
   .rasp-time .num { font-size:1.1rem; color:#1e40af; }
   .rasp-cell { background:white; border:2px solid #e2e8f0; border-radius:12px; padding:8px; min-height:90px; transition:all .2s; position:relative; overflow:hidden; cursor:pointer; }
   .rasp-cell:hover { border-color:#1e40af; transform:translateY(-2px); box-shadow:0 6px 16px rgba(0,0,0,.08); }
@@ -410,7 +537,9 @@ const DEFAULT_DATA = {
   porukeChat: [],
   otkazani: [], // { id, casId, datum, razlog, otkazaoId }
   zamjene: [], // { id, casId, datum, zamjenskiId, napomena, postavioId }
-  popravni: [] // { id, ucenikId, predmet, tipoviIspita: ['usmeno','pismeno','praksa'], razlog, datum, vrijeme, mjesto, semestar, status, nastavnikId, postavioId, opis }
+  popravni: [], // { id, ucenikId, predmet, tipoviIspita, razlog, datum, vrijeme, mjesto, semestar, status, nastavnikId, postavioId, opis }
+  sveske: {}, // { userId: [ {id, naslov, sadrzaj, boja, datum, izmijenjeno, tagovi} ] } - eSveska stranice
+  biljezniceProf: [] // { id, nastavnikId, razredId, predmet, datum, oznake: { ucenikId: '+|-|o|+-|napomena' }, opis }
 };
 
 let DB;
@@ -813,6 +942,7 @@ const MENU = {
     ['izvjestaji','Izvještaji','chart'],
     ['semestri','Semestri','cal'],
     ['popravni','Popravni ispiti','exam'],
+    ['esveska','eSveska','note'],
     ['poruke','Poruke','mail'],
     ['postavke','Postavke','set'],
     ['odjava','Odjava','out']
@@ -824,6 +954,8 @@ const MENU = {
     ['planprogram','Plan i program','folder'],
     ['materijali','Materijali','doc'],
     ['biljeske','Bilješke','note'],
+    ['esveska','eSveska','note'],
+    ['biljeznica','📓 Bilježnica','homework'],
     ['domaci','Domaće zadaće','homework'],
     ['ispitivanja','Ispitivanja','exam'],
     ['popravni','Popravni','exam'],
@@ -846,6 +978,7 @@ const MENU = {
     ['mojipopravni','Popravni ispiti','exam'],
     ['mojimaterijali','Materijali','doc'],
     ['mojidomaci','Zadaće','homework'],
+    ['esveska','eSveska','note'],
     ['poruke','Poruke','mail'],
     ['postavke','Postavke','set'],
     ['odjava','Odjava','out']
@@ -2574,6 +2707,509 @@ function dodajMat(razredId, predmet) {
   };
 }
 function obrisiMat(id) { if (confirm('Obrisati?')) { DB.materijali = DB.materijali.filter(m=>m.id!==id); saveData(); navigate('materijali'); } }
+
+// ============= eSVESKA (text editor sa formatiranjem) =============
+RENDERERS.esveska = function(c, state) {
+  state = state || {};
+  if (!DB.sveske) DB.sveske = {};
+  const userId = currentUser.id;
+  if (!DB.sveske[userId]) DB.sveske[userId] = [];
+  const moje = DB.sveske[userId];
+  
+  // Ako je odabrana stranica - prikaži editor
+  if (state.svId) return renderSveskaEditor(c, state.svId);
+  
+  const filter = document.getElementById('svFilter')?.value || '';
+  const tag = document.getElementById('svTag')?.value || '';
+  let list = moje.slice();
+  if (filter) list = list.filter(s=>s.naslov.toLowerCase().indexOf(filter.toLowerCase())>=0 || (s.sadrzaj||'').toLowerCase().indexOf(filter.toLowerCase())>=0);
+  if (tag) list = list.filter(s=>(s.tagovi||[]).indexOf(tag)>=0);
+  list.sort((a,b)=>(b.izmijenjeno||b.datum||'').localeCompare(a.izmijenjeno||a.datum||''));
+  
+  // sve tagove iz svih bilježaka
+  const sviTagovi = [];
+  moje.forEach(s=>{ (s.tagovi||[]).forEach(t=>{ if (sviTagovi.indexOf(t)<0) sviTagovi.push(t); }); });
+  
+  c.innerHTML = '<div class="flex flex-wrap justify-between items-center gap-3 mb-4">'+
+    '<div><h2 class="text-3xl font-bold">📓 eSveska</h2>'+
+    '<p class="text-gray-500 text-sm mt-1">Vaše osobne bilježnice za pisanje • '+moje.length+' '+(moje.length===1?'bilježnica':'bilježnica')+'</p></div>'+
+    '<button onclick="novaSveska()" class="btn-primary px-5 py-2.5 rounded-lg font-semibold flex items-center gap-2"><span class="text-xl">+</span> Nova bilježnica</button>'+
+    '</div>'+
+    '<div class="flex flex-wrap gap-2 mb-4 bg-white p-3 rounded-xl border">'+
+    '<div class="flex-1 min-w-[200px] relative">'+
+    '<input id="svFilter" oninput="navigate(\'esveska\')" value="'+escapeHtml(filter)+'" placeholder="🔍 Pretraži po naslovu ili sadržaju..." class="w-full pl-10 pr-4 py-2 border rounded-lg">'+
+    '<span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>'+
+    '</div>'+
+    (sviTagovi.length?'<select id="svTag" onchange="navigate(\'esveska\')" class="px-3 py-2 border rounded-lg">'+
+    '<option value="">Svi tagovi</option>'+sviTagovi.map(t=>'<option'+(t===tag?' selected':'')+'>'+t+'</option>').join('')+'</select>':'')+
+    '</div>';
+  
+  if (!list.length) {
+    c.innerHTML += '<div class="empty-state"><div class="text-6xl mb-3">📓</div>'+
+      (filter||tag?'<p>Nema bilježnica koje odgovaraju filteru.</p>':'<p class="mb-3">Još nemate bilježnica!</p><button onclick="novaSveska()" class="btn-primary px-5 py-2.5 rounded-lg font-semibold">+ Kreiraj prvu bilježnicu</button>')+'</div>';
+  } else {
+    c.innerHTML += '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">'+
+      list.map(function(s){
+        const tekst = (s.sadrzaj||'').replace(/<[^>]*>/g,'').substring(0,100);
+        return '<div onclick="navigate(\'esveska\',{svId:'+s.id+'})" class="sveska-card sveska-color-'+(s.boja||'zuta')+' border-2 rounded-xl p-4 relative shadow-sm">'+
+          '<div class="absolute top-2 right-2 flex gap-1">'+
+          '<button onclick="event.stopPropagation();obrisiSvesku('+s.id+')" class="bg-white/70 hover:bg-red-100 hover:text-red-700 w-7 h-7 rounded text-sm" title="Obriši">🗑</button>'+
+          '</div>'+
+          '<div class="text-4xl mb-2">📖</div>'+
+          '<h3 class="font-bold text-lg text-gray-900 mb-1 pr-8">'+escapeHtml(s.naslov||'Bez naslova')+'</h3>'+
+          (s.tagovi&&s.tagovi.length?'<div class="flex flex-wrap gap-1 mb-2">'+s.tagovi.map(t=>'<span class="badge bg-white/70 text-gray-700 text-[10px]">#'+escapeHtml(t)+'</span>').join('')+'</div>':'')+
+          '<p class="text-sm text-gray-700 line-clamp-3 italic mb-3">'+(tekst?escapeHtml(tekst)+(tekst.length>=100?'...':''):'<span class="opacity-60">prazna bilježnica</span>')+'</p>'+
+          '<div class="text-xs text-gray-600 pt-2 border-t border-white/50">📅 '+(s.izmijenjeno?'Izmijenjeno: '+fmtDateTime(s.izmijenjeno):'Kreirano: '+fmtDate(s.datum))+'</div>'+
+          '</div>';
+      }).join('')+
+      '</div>';
+  }
+};
+
+function fmtDateTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+d.getFullYear()+'. '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+}
+
+function novaSveska() {
+  showModal('<h3 class="text-xl font-bold mb-4">📓 Nova bilježnica</h3>'+
+    '<form id="nsf" class="space-y-3">'+
+    '<div><label class="text-sm font-medium block mb-1">Naslov *</label>'+
+    '<input name="naslov" required class="w-full px-3 py-2 border rounded-lg" placeholder="npr. Bilješke iz matematike" autofocus></div>'+
+    '<div><label class="text-sm font-medium block mb-1">Boja korice</label>'+
+    '<div class="grid grid-cols-6 gap-2">'+
+    ['zuta','plava','roze','zelena','narandzasta','ljubicasta'].map(function(b,i){
+      return '<label class="cursor-pointer"><input type="radio" name="boja" value="'+b+'" '+(i===0?'checked':'')+' class="sr-only peer">'+
+        '<div class="sveska-color-'+b+' border-2 rounded-lg p-3 text-center peer-checked:ring-4 peer-checked:ring-blue-500"><div class="text-2xl">📖</div></div></label>';
+    }).join('')+
+    '</div></div>'+
+    '<div><label class="text-sm font-medium block mb-1">Tagovi (odvojeno zarezom)</label>'+
+    '<input name="tagovi" class="w-full px-3 py-2 border rounded-lg" placeholder="npr. matematika, vježbe, II semestar"></div>'+
+    '<div class="flex justify-end gap-2 pt-4 border-t">'+
+    '<button type="button" onclick="closeModal()" class="btn-secondary px-4 py-2 rounded-lg">Otkaži</button>'+
+    '<button type="submit" class="btn-primary px-4 py-2 rounded-lg">Kreiraj i otvori</button>'+
+    '</div></form>');
+  document.getElementById('nsf').onsubmit = function(e){
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const tagovi = fd.get('tagovi').split(',').map(t=>t.trim()).filter(Boolean);
+    if (!DB.sveske[currentUser.id]) DB.sveske[currentUser.id] = [];
+    const nova = {
+      id: Date.now(),
+      naslov: fd.get('naslov'),
+      boja: fd.get('boja'),
+      tagovi: tagovi,
+      sadrzaj: '',
+      datum: new Date().toISOString(),
+      izmijenjeno: null
+    };
+    DB.sveske[currentUser.id].push(nova);
+    saveData(); closeModal();
+    navigate('esveska', { svId: nova.id });
+    showNotification('📓 Bilježnica kreirana!');
+  };
+}
+
+function obrisiSvesku(id) {
+  if (!confirm('🗑 Obrisati bilježnicu i sav njen sadržaj?')) return;
+  DB.sveske[currentUser.id] = (DB.sveske[currentUser.id]||[]).filter(s=>s.id!==id);
+  saveData(); navigate('esveska'); showNotification('Bilježnica obrisana');
+}
+
+// Editor stranica
+function renderSveskaEditor(c, svId) {
+  const s = (DB.sveske[currentUser.id]||[]).find(x=>x.id===svId);
+  if (!s) { navigate('esveska'); return; }
+  
+  c.innerHTML = '<div class="flex flex-wrap items-center gap-3 mb-4">'+
+    '<button onclick="navigate(\'esveska\')" class="btn-secondary px-3 py-2 rounded-lg">← Sve bilježnice</button>'+
+    '<input id="svNaslov" value="'+escapeHtml(s.naslov)+'" onchange="updateSvNaslov('+svId+',this.value)" class="text-xl font-bold flex-1 px-3 py-2 border rounded-lg" placeholder="Naslov...">'+
+    '<select onchange="updateSvBoja('+svId+',this.value)" class="px-3 py-2 border rounded-lg">'+
+    ['zuta','plava','roze','zelena','narandzasta','ljubicasta'].map(b=>'<option value="'+b+'"'+(s.boja===b?' selected':'')+'>'+b.charAt(0).toUpperCase()+b.slice(1)+'</option>').join('')+
+    '</select>'+
+    '<button onclick="izvozSveskaPdf('+svId+')" class="btn-secondary px-3 py-2 rounded-lg text-sm">🖨</button>'+
+    '<button onclick="obrisiSvesku('+svId+')" class="btn-danger px-3 py-2 rounded-lg text-sm">🗑</button>'+
+    '</div>'+
+    '<div class="bg-white border rounded-xl overflow-hidden shadow-md">'+
+    // TOOLBAR
+    '<div class="sveska-toolbar">'+
+    '<button onclick="execCmd(\'bold\')" title="Bold (Ctrl+B)"><b>B</b></button>'+
+    '<button onclick="execCmd(\'italic\')" title="Italic (Ctrl+I)"><i>I</i></button>'+
+    '<button onclick="execCmd(\'underline\')" title="Underline (Ctrl+U)"><u>U</u></button>'+
+    '<button onclick="execCmd(\'strikeThrough\')" title="Precrtano"><s>S</s></button>'+
+    '<div class="sep"></div>'+
+    '<select onchange="execCmd(\'formatBlock\',this.value);this.selectedIndex=0">'+
+    '<option value="">Format ▾</option>'+
+    '<option value="p">Paragraf</option>'+
+    '<option value="h1">Naslov 1</option>'+
+    '<option value="h2">Naslov 2</option>'+
+    '<option value="h3">Naslov 3</option>'+
+    '<option value="blockquote">Citat</option>'+
+    '<option value="pre">Kod</option>'+
+    '</select>'+
+    '<select onchange="execCmd(\'fontSize\',this.value);this.selectedIndex=0">'+
+    '<option value="">Veličina ▾</option>'+
+    '<option value="1">Vrlo mala</option>'+
+    '<option value="2">Mala</option>'+
+    '<option value="3">Normalna</option>'+
+    '<option value="4">Veća</option>'+
+    '<option value="5">Velika</option>'+
+    '<option value="6">Vrlo velika</option>'+
+    '<option value="7">Ogromna</option>'+
+    '</select>'+
+    '<div class="sep"></div>'+
+    // Boje
+    '<input type="color" onchange="execCmd(\'foreColor\',this.value)" value="#1e40af" title="Boja teksta" class="w-8 h-8 rounded cursor-pointer">'+
+    '<input type="color" onchange="execCmd(\'hiliteColor\',this.value)" value="#fef08a" title="Boja pozadine" class="w-8 h-8 rounded cursor-pointer">'+
+    '<div class="sep"></div>'+
+    // Liste
+    '<button onclick="execCmd(\'insertUnorderedList\')" title="Bullet lista">• ≡</button>'+
+    '<button onclick="execCmd(\'insertOrderedList\')" title="Numerisana lista">1. ≡</button>'+
+    '<div class="sep"></div>'+
+    // Poravnanje
+    '<button onclick="execCmd(\'justifyLeft\')" title="Lijevo">⬅</button>'+
+    '<button onclick="execCmd(\'justifyCenter\')" title="Centar">↔</button>'+
+    '<button onclick="execCmd(\'justifyRight\')" title="Desno">➡</button>'+
+    '<div class="sep"></div>'+
+    // Specijalno
+    '<button onclick="insertEmoji()" title="Emoji">😊</button>'+
+    '<button onclick="insertLink()" title="Link">🔗</button>'+
+    '<button onclick="insertHr()" title="Linija">─</button>'+
+    '<div class="sep"></div>'+
+    '<button onclick="execCmd(\'undo\')" title="Vrati (Ctrl+Z)">↶</button>'+
+    '<button onclick="execCmd(\'redo\')" title="Naprijed (Ctrl+Y)">↷</button>'+
+    '<button onclick="execCmd(\'removeFormat\')" title="Ukloni formatiranje">✕ Fmt</button>'+
+    '<div class="sep"></div>'+
+    '<span id="svSaveStatus" class="text-xs opacity-90 ml-2">✓ Sačuvano</span>'+
+    '</div>'+
+    // PAGE
+    '<div id="svEditor" class="sveska-page sveska-editor" contenteditable="true" oninput="onSveskaEdit('+svId+')" spellcheck="true">'+(s.sadrzaj||'')+'</div>'+
+    '</div>'+
+    '<div class="mt-3 text-xs text-gray-500 flex flex-wrap gap-3">'+
+    '<span>📅 Kreirano: '+fmtDateTime(s.datum)+'</span>'+
+    (s.izmijenjeno?'<span>✎ Izmijenjeno: '+fmtDateTime(s.izmijenjeno)+'</span>':'')+
+    (s.tagovi&&s.tagovi.length?'<span>🏷 '+s.tagovi.map(t=>'#'+t).join(' ')+'</span>':'')+
+    '<button onclick="urediTagove('+svId+')" class="text-blue-600 hover:underline">✎ Tagovi</button>'+
+    '</div>';
+}
+
+// execCommand wrapper
+let sveskaSaveTimer = null;
+function execCmd(cmd, val) {
+  document.execCommand(cmd, false, val);
+  document.getElementById('svEditor')?.focus();
+}
+
+function onSveskaEdit(svId) {
+  const ed = document.getElementById('svEditor');
+  if (!ed) return;
+  const status = document.getElementById('svSaveStatus');
+  if (status) status.textContent = '⟳ Pisanje...';
+  if (sveskaSaveTimer) clearTimeout(sveskaSaveTimer);
+  sveskaSaveTimer = setTimeout(function(){
+    const s = (DB.sveske[currentUser.id]||[]).find(x=>x.id===svId);
+    if (!s) return;
+    s.sadrzaj = ed.innerHTML;
+    s.izmijenjeno = new Date().toISOString();
+    saveData();
+    if (status) status.textContent = '✓ Sačuvano automatski';
+  }, 600);
+}
+
+function updateSvNaslov(svId, naslov) {
+  const s = (DB.sveske[currentUser.id]||[]).find(x=>x.id===svId);
+  if (!s) return;
+  s.naslov = naslov;
+  s.izmijenjeno = new Date().toISOString();
+  saveData();
+}
+function updateSvBoja(svId, boja) {
+  const s = (DB.sveske[currentUser.id]||[]).find(x=>x.id===svId);
+  if (!s) return;
+  s.boja = boja;
+  saveData();
+}
+
+function urediTagove(svId) {
+  const s = (DB.sveske[currentUser.id]||[]).find(x=>x.id===svId);
+  if (!s) return;
+  const novi = prompt('Tagovi (odvojeno zarezom):', (s.tagovi||[]).join(', '));
+  if (novi === null) return;
+  s.tagovi = novi.split(',').map(t=>t.trim()).filter(Boolean);
+  saveData();
+  navigate('esveska', {svId:svId});
+}
+
+function insertEmoji() {
+  const emoji = prompt('Emoji za umetnuti:', '😊');
+  if (emoji) execCmd('insertText', emoji);
+}
+function insertLink() {
+  const url = prompt('URL link:', 'https://');
+  if (url) execCmd('createLink', url);
+}
+function insertHr() {
+  execCmd('insertHorizontalRule');
+}
+
+function izvozSveskaPdf(svId) {
+  const s = (DB.sveske[currentUser.id]||[]).find(x=>x.id===svId);
+  if (!s) return;
+  const w = window.open('', '_blank');
+  w.document.write('<html><head><title>'+escapeHtml(s.naslov)+'</title>'+
+    '<style>body{font-family:Georgia,serif;padding:40px;line-height:1.6;color:#1e3a8a;}h1{border-bottom:2px solid #1e40af;padding-bottom:10px;}</style></head>'+
+    '<body><h1>'+escapeHtml(s.naslov)+'</h1>'+
+    '<p style="color:#666;font-size:12px">'+fmtDateTime(s.datum)+(s.tagovi&&s.tagovi.length?' • #'+s.tagovi.join(' #'):'')+'</p>'+
+    '<hr>'+s.sadrzaj+'</body></html>');
+  setTimeout(()=>w.print(), 500);
+}
+
+// ============= BILJEŽNICA (mali dnevnik sa +/-/o oznakama) =============
+RENDERERS.biljeznica = function(c) {
+  if (currentUser.role!=='nastavnik') { c.innerHTML='<div class="empty-state">Samo nastavnici</div>'; return; }
+  if (!DB.biljezniceProf) DB.biljezniceProf = [];
+  
+  const mojiRazredi = [...new Set((currentUser.zaduzenja||[]).reduce(function(s,z){return s.concat(z.razrediIds||[])},[]))];
+  const razredId = +(document.getElementById('bzRazred')?.value || mojiRazredi[0] || DB.razredi[0]?.id);
+  const dostupniPredmeti = (currentUser.zaduzenja||[]).filter(z=>(z.razrediIds||[]).indexOf(razredId)>=0).map(z=>z.predmet);
+  if (!dostupniPredmeti.length) (currentUser.zaduzenja||[]).forEach(z=>dostupniPredmeti.push(z.predmet));
+  const predmet = document.getElementById('bzPredmet')?.value || dostupniPredmeti[0];
+  const datum = document.getElementById('bzDatum')?.value || todayISO();
+  
+  // pronađi postojeću bilješku za ovaj razred+predmet+datum+mene
+  let zapis = DB.biljezniceProf.find(b=>b.nastavnikId===currentUser.id && b.razredId===razredId && b.predmet===predmet && b.datum===datum);
+  if (!zapis) {
+    zapis = { id: Date.now(), nastavnikId: currentUser.id, razredId: razredId, predmet: predmet, datum: datum, oznake: {}, opis: '' };
+  }
+  
+  const ucenici = DB.ucenici.filter(u=>u.razredId===razredId);
+  
+  // Statistika
+  const brPlus = Object.values(zapis.oznake||{}).filter(o=>o==='+').length;
+  const brMinus = Object.values(zapis.oznake||{}).filter(o=>o==='-').length;
+  const brKrug = Object.values(zapis.oznake||{}).filter(o=>o==='o').length;
+  const brZvj = Object.values(zapis.oznake||{}).filter(o=>o==='*').length;
+  
+  c.innerHTML = '<div class="flex flex-wrap justify-between items-center gap-3 mb-4">'+
+    '<div><h2 class="text-3xl font-bold">📓 Bilježnica</h2>'+
+    '<p class="text-gray-500 text-sm mt-1">Vaš mali "dnevnik na papiru" - brze oznake za ocjenjivanje aktivnosti učenika</p></div>'+
+    '<button onclick="pregledBiljeznice()" class="btn-secondary px-4 py-2 rounded-lg">📚 Sve bilježnice</button>'+
+    '</div>'+
+    
+    // FILTERI
+    '<div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4 bg-white p-4 rounded-xl border shadow-sm">'+
+    '<div><label class="text-xs font-semibold text-gray-600 uppercase block mb-1">Razred</label>'+
+    '<select id="bzRazred" onchange="navigate(\'biljeznica\')" class="w-full px-3 py-2 border rounded-lg">'+
+    DB.razredi.filter(r=>mojiRazredi.indexOf(r.id)>=0).map(r=>'<option value="'+r.id+'"'+(r.id===razredId?' selected':'')+'>'+r.naziv+'</option>').join('')+
+    '</select></div>'+
+    '<div><label class="text-xs font-semibold text-gray-600 uppercase block mb-1">Predmet</label>'+
+    '<select id="bzPredmet" onchange="navigate(\'biljeznica\')" class="w-full px-3 py-2 border rounded-lg">'+
+    dostupniPredmeti.map(p=>'<option'+(p===predmet?' selected':'')+'>'+p+'</option>').join('')+
+    '</select></div>'+
+    '<div><label class="text-xs font-semibold text-gray-600 uppercase block mb-1">Datum</label>'+
+    '<input id="bzDatum" type="date" value="'+datum+'" onchange="navigate(\'biljeznica\')" class="w-full px-3 py-2 border rounded-lg"></div>'+
+    '</div>'+
+    
+    // STATISTIKA
+    '<div class="grid grid-cols-4 gap-3 mb-4">'+
+    '<div class="bg-green-50 border border-green-300 rounded-xl p-3 text-center"><div class="text-3xl font-bold text-green-700">'+brPlus+'</div><div class="text-xs text-gray-600">➕ Pozitivno</div></div>'+
+    '<div class="bg-red-50 border border-red-300 rounded-xl p-3 text-center"><div class="text-3xl font-bold text-red-700">'+brMinus+'</div><div class="text-xs text-gray-600">➖ Negativno</div></div>'+
+    '<div class="bg-yellow-50 border border-yellow-300 rounded-xl p-3 text-center"><div class="text-3xl font-bold text-yellow-700">'+brKrug+'</div><div class="text-xs text-gray-600">⭕ Provjera</div></div>'+
+    '<div class="bg-indigo-50 border border-indigo-300 rounded-xl p-3 text-center"><div class="text-3xl font-bold text-indigo-700">'+brZvj+'</div><div class="text-xs text-gray-600">⭐ Odlično</div></div>'+
+    '</div>'+
+    
+    // LEGENDA
+    '<div class="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4 text-sm">'+
+    '<b class="text-blue-900">💡 Legenda oznaka:</b> '+
+    '<span class="ml-2"><b class="text-green-700">+</b> = pozitivna aktivnost</span> • '+
+    '<span><b class="text-red-700">−</b> = neaktivnost / loš odgovor</span> • '+
+    '<span><b class="text-yellow-700">○</b> = provjera / poziv na tablu</span> • '+
+    '<span><b class="text-indigo-700">★</b> = odličan odgovor</span>'+
+    '<div class="text-xs text-blue-700 mt-1">💡 Klik na oznaku stavlja/uklanja • Dugi klik (desni klik) za napomenu</div>'+
+    '</div>'+
+    
+    // TABELA
+    '<div class="biljeznica-grid"><table>'+
+    '<thead><tr>'+
+    '<th style="width:50px">#</th>'+
+    '<th class="ucenik-col">Učenik</th>'+
+    '<th style="width:60px" title="Pozitivno">➕</th>'+
+    '<th style="width:60px" title="Negativno">➖</th>'+
+    '<th style="width:60px" title="Provjera">⭕</th>'+
+    '<th style="width:60px" title="Odlično">⭐</th>'+
+    '<th style="width:50px" title="Obriši">✕</th>'+
+    '<th style="min-width:120px">Napomena</th>'+
+    '</tr></thead><tbody>'+
+    ucenici.map(function(u,i){
+      const o = (zapis.oznake||{})[u.id] || '';
+      const naps = (zapis.napomene||{})[u.id] || '';
+      return '<tr><td>'+(i+1)+'</td>'+
+        '<td class="ucenik-col">'+escapeHtml(u.prezime+' '+u.ime)+'</td>'+
+        '<td><button onclick="setBzOznaka('+u.id+',\'+\')" class="ozn-btn ozn-plus'+(o==='+'?' aktivna':'')+'">+</button></td>'+
+        '<td><button onclick="setBzOznaka('+u.id+',\'-\')" class="ozn-btn ozn-minus'+(o==='-'?' aktivna':'')+'">−</button></td>'+
+        '<td><button onclick="setBzOznaka('+u.id+',\'o\')" class="ozn-btn ozn-krug'+(o==='o'?' aktivna':'')+'">○</button></td>'+
+        '<td><button onclick="setBzOznaka('+u.id+',\'*\')" class="ozn-btn ozn-zvjezdica'+(o==='*'?' aktivna':'')+'">★</button></td>'+
+        '<td><button onclick="setBzOznaka('+u.id+',\'\')" class="ozn-btn ozn-clear" title="Obriši">×</button></td>'+
+        '<td><input type="text" value="'+escapeHtml(naps)+'" onchange="setBzNapomena('+u.id+',this.value)" class="w-full px-2 py-1 border rounded text-sm" placeholder="..."></td>'+
+        '</tr>';
+    }).join('')+
+    '</tbody></table></div>'+
+    
+    // OPIS / NAPOMENA
+    '<div class="bg-white border rounded-xl p-4 mt-4">'+
+    '<label class="text-sm font-semibold block mb-2">📝 Napomena za cijeli čas (opcionalno)</label>'+
+    '<textarea id="bzOpis" onchange="setBzOpis(this.value)" class="w-full px-3 py-2 border rounded-lg h-20" placeholder="npr. Obrađivali smo razlomke, učenici aktivni...">'+escapeHtml(zapis.opis||'')+'</textarea>'+
+    '</div>'+
+    
+    '<div class="mt-4 flex justify-between items-center bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-3">'+
+    '<div class="text-sm text-blue-900"><b>ℹ️ Auto-spašavanje:</b> Sve oznake se automatski čuvaju u oblak</div>'+
+    '<button onclick="primijeniIzOcjene()" class="btn-primary px-4 py-2 rounded-lg text-sm">📊 Primijeni u ocjene...</button>'+
+    '</div>';
+  
+  // sačuvaj trenutni zapis ako je novi (da ima id u DB)
+  window._trenutnaBz = zapis;
+};
+
+function setBzOznaka(ucenikId, oznaka) {
+  let z = window._trenutnaBz;
+  if (!z) return;
+  if (!z.oznake) z.oznake = {};
+  if (z.oznake[ucenikId] === oznaka) z.oznake[ucenikId] = ''; // toggle
+  else z.oznake[ucenikId] = oznaka;
+  // ako ne postoji u DB - dodaj
+  if (!DB.biljezniceProf.find(b=>b.id===z.id)) DB.biljezniceProf.push(z);
+  saveData();
+  navigate('biljeznica');
+}
+
+function setBzNapomena(ucenikId, napomena) {
+  let z = window._trenutnaBz;
+  if (!z) return;
+  if (!z.napomene) z.napomene = {};
+  z.napomene[ucenikId] = napomena;
+  if (!DB.biljezniceProf.find(b=>b.id===z.id)) DB.biljezniceProf.push(z);
+  saveData();
+}
+
+function setBzOpis(opis) {
+  let z = window._trenutnaBz;
+  if (!z) return;
+  z.opis = opis;
+  if (!DB.biljezniceProf.find(b=>b.id===z.id)) DB.biljezniceProf.push(z);
+  saveData();
+}
+
+function pregledBiljeznice() {
+  const moje = DB.biljezniceProf.filter(b=>b.nastavnikId===currentUser.id)
+    .filter(b=>Object.keys(b.oznake||{}).length || (b.opis&&b.opis.length))
+    .sort((a,b)=>b.datum.localeCompare(a.datum));
+  if (!moje.length) { showNotification('Nemate još bilježaka','info'); return; }
+  let html = '<h3 class="text-xl font-bold mb-3">📚 Sve moje bilježnice</h3>'+
+    '<div class="space-y-2 max-h-96 overflow-y-auto">';
+  moje.forEach(function(b){
+    const brOzn = Object.keys(b.oznake||{}).length;
+    html += '<div onclick="otvoriBz('+b.razredId+',\''+escapeHtml(b.predmet).replace(/\x27/g,'%27')+'\',\''+b.datum+'\')" class="bg-white border rounded-lg p-3 hover:bg-blue-50 cursor-pointer flex justify-between items-center">'+
+      '<div><b>'+escapeHtml(b.predmet)+'</b> • '+getRazredName(b.razredId)+'<div class="text-xs text-gray-500">'+fmtDate(b.datum)+(b.opis?' • '+escapeHtml(b.opis.substring(0,40))+(b.opis.length>40?'...':''):'')+'</div></div>'+
+      '<div class="text-sm flex gap-1">'+
+      (b.oznake?Object.values(b.oznake).filter(o=>o==='+').length:0)+'<span class="text-green-700">+</span> '+
+      (b.oznake?Object.values(b.oznake).filter(o=>o==='-').length:0)+'<span class="text-red-700">−</span> '+
+      (b.oznake?Object.values(b.oznake).filter(o=>o==='*').length:0)+'<span class="text-indigo-700">★</span>'+
+      '</div></div>';
+  });
+  html += '</div><div class="flex justify-end mt-4"><button onclick="closeModal()" class="btn-secondary px-4 py-2 rounded-lg">Zatvori</button></div>';
+  showModal(html);
+}
+
+function otvoriBz(razredId, predmet, datum) {
+  predmet = decodeURIComponent(predmet);
+  closeModal();
+  // postavi i nazaj na biljeznica view
+  setTimeout(function(){
+    navigate('biljeznica');
+    setTimeout(function(){
+      document.getElementById('bzRazred').value = razredId;
+      document.getElementById('bzPredmet').value = predmet;
+      document.getElementById('bzDatum').value = datum;
+      navigate('biljeznica');
+    },50);
+  },50);
+}
+
+function primijeniIzOcjene() {
+  const z = window._trenutnaBz;
+  if (!z) return;
+  const sem = getCurrentSemester();
+  if (isSemesterZatvoren(sem)) { 
+    const si = getSemesterInfo(sem);
+    showNotification('🔒 '+(si?si.naziv:'Semestar')+' je ZATVOREN','error'); return; 
+  }
+  const ucenici = DB.ucenici.filter(u=>u.razredId===z.razredId);
+  let html = '<h3 class="text-xl font-bold mb-3">📊 Pretvori oznake u ocjene</h3>'+
+    '<p class="text-sm text-gray-600 mb-3">Predmet: <b>'+escapeHtml(z.predmet)+'</b> • '+getRazredName(z.razredId)+' • '+fmtDate(z.datum)+'</p>'+
+    '<div class="bg-blue-50 border border-blue-200 rounded p-3 mb-3 text-xs">'+
+    '<b>ℹ️ Konverzija (možeš promijeniti):</b> ★ → 5 • + → 4 • ○ → 3 • − → 2'+
+    '</div>'+
+    '<div class="space-y-1 max-h-96 overflow-y-auto border rounded-lg p-2 bg-gray-50">';
+  ucenici.forEach(function(u){
+    const o = (z.oznake||{})[u.id];
+    if (!o) return;
+    const def = o==='*'?5:o==='+'?4:o==='o'?3:2;
+    html += '<div class="bg-white border rounded p-2 flex items-center gap-2" data-uc="'+u.id+'">'+
+      '<div class="flex-1">'+escapeHtml(u.prezime+' '+u.ime)+' <span class="text-sm text-gray-500">('+(o==='*'?'★':o==='+'?'+':o==='o'?'○':'−')+')</span></div>'+
+      '<select class="bzOcj px-2 py-1 border rounded text-sm" data-uc="'+u.id+'">'+
+      '<option value="">- ne -</option>'+
+      [1,2,3,4,5].map(v=>'<option value="'+v+'"'+(v===def?' selected':'')+'>'+v+'</option>').join('')+
+      '</select>'+
+      '<select class="bzTip px-2 py-1 border rounded text-sm">'+
+      '<option value="aktivnost">Aktivnost</option>'+
+      '<option value="usmena">Usmena</option>'+
+      '<option value="pismena">Pismena</option>'+
+      '</select>'+
+      '</div>';
+  });
+  if (!Object.keys(z.oznake||{}).filter(k=>z.oznake[k]).length) {
+    html += '<div class="empty-state">Nema oznaka za pretvaranje</div>';
+  }
+  html += '</div>'+
+    '<div class="flex justify-end gap-2 mt-4 pt-3 border-t">'+
+    '<button onclick="closeModal()" class="btn-secondary px-4 py-2 rounded-lg">Otkaži</button>'+
+    '<button onclick="potvrdiPretvaranje()" class="btn-primary px-4 py-2 rounded-lg">📊 Upiši ocjene</button>'+
+    '</div>';
+  showModal(html);
+}
+
+function potvrdiPretvaranje() {
+  const z = window._trenutnaBz;
+  if (!z) return;
+  const sem = getCurrentSemester();
+  let brUpisanih = 0;
+  document.querySelectorAll('.bzOcj').forEach(function(sel){
+    const ucenikId = +sel.dataset.uc;
+    const v = sel.value;
+    if (!v) return;
+    const tipSel = sel.parentElement.querySelector('.bzTip');
+    const tip = tipSel ? tipSel.value : 'aktivnost';
+    DB.ocjene.push({
+      id: Date.now()+Math.random(),
+      ucenikId: ucenikId,
+      predmet: z.predmet,
+      tip: tip,
+      vrijednost: +v,
+      datum: z.datum,
+      semestar: sem,
+      nastavnikId: currentUser.id,
+      zamjenjuje: null, zamjenjeno: false, zakljucna: false,
+      biljeska: 'Iz bilježnice'
+    });
+    brUpisanih++;
+    // obavijesti učenika
+    const usr = DB.users.find(u=>u.ucenikId===ucenikId);
+    if (usr) DB.obavijesti.push({ id:Date.now()+Math.random(), naslov:'⭐ Ocjena iz bilježnice', tekst:z.predmet+' ('+tip+'): '+v, datum:todayISO(), za:null, zaId:usr.id });
+  });
+  saveData(); closeModal();
+  showNotification('✓ Upisano '+brUpisanih+' ocjena u dnevnik!');
+}
 
 // ----- BILJEŠKE -----
 RENDERERS.biljeske = function(c) {
