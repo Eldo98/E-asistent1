@@ -651,29 +651,55 @@ function fmtDate(d) { if (!d) return ''; const p = d.split('-'); return p[2]+'.'
 function getRazredName(id) { return DB.razredi.find(r=>r.id===id)?.naziv || '-'; }
 function getNastavnikName(id) { return DB.users.find(u=>u.id===id)?.name || '-'; }
 function getDanName(d) { return ['Nedjelja','Ponedjeljak','Utorak','Srijeda','Četvrtak','Petak','Subota'][d]; }
-function getCurrentSemester() {
+// Vraća semestar koji obuhvata dati datum I odgovara razredu (ako je razredId zadan)
+// Ako semestar ima razrediIds prazno = vrijedi za SVE razrede
+function getCurrentSemester(razredId) {
   const today = todayISO();
-  // Pronađi semestar koji obuhvata današnji datum
   if (DB.semestri && DB.semestri.length) {
-    const sem = DB.semestri.find(s=>s.datumOd<=today && s.datumDo>=today);
+    // prvo traži onaj specifičan za razred
+    if (razredId) {
+      const sem = DB.semestri.find(function(s){
+        if (s.datumOd>today || s.datumDo<today) return false;
+        if (!s.razrediIds || !s.razrediIds.length) return false; // globalni - probaj kasnije
+        return s.razrediIds.indexOf(razredId)>=0;
+      });
+      if (sem) return sem.broj;
+    }
+    // pa globalni
+    const sem = DB.semestri.find(function(s){
+      if (s.datumOd>today || s.datumDo<today) return false;
+      return !s.razrediIds || !s.razrediIds.length;
+    });
     if (sem) return sem.broj;
+    // fallback - bilo koji aktivan
+    const sem2 = DB.semestri.find(s=>s.datumOd<=today && s.datumDo>=today);
+    if (sem2) return sem2.broj;
   }
-  // fallback po mjesecu
   const m = new Date().getMonth();
   return (m>=8||m<=0)?1:2;
 }
-function getSemesterInfo(broj) {
+
+// Vraća info o semestru - prvo provjerava specifičan za razred
+function getSemesterInfo(broj, razredId) {
   if (!DB.semestri) return null;
+  if (razredId) {
+    const sem = DB.semestri.find(s=>s.broj===broj && s.razrediIds && s.razrediIds.indexOf(razredId)>=0);
+    if (sem) return sem;
+  }
+  // globalni
+  const sem = DB.semestri.find(s=>s.broj===broj && (!s.razrediIds || !s.razrediIds.length));
+  if (sem) return sem;
+  // fallback - bilo koji s tim brojem
   return DB.semestri.find(s=>s.broj===broj);
 }
-function isSemesterZatvoren(broj) {
-  const s = getSemesterInfo(broj);
-  // ako semestar nije pronađen, ZATVOREN je po defaultu
+
+function isSemesterZatvoren(broj, razredId) {
+  const s = getSemesterInfo(broj, razredId);
   if (!s) return true;
-  return s.zatvoren !== false; // sve osim eksplicitno false znači zatvoren
+  return s.zatvoren !== false;
 }
-function isSemesterOtvoren(broj) {
-  return !isSemesterZatvoren(broj);
+function isSemesterOtvoren(broj, razredId) {
+  return !isSemesterZatvoren(broj, razredId);
 }
 function isSemesterLocked(razredId, predmet, sem) { return DB.zakljucniSemestri.some(z=>z.razredId===razredId&&z.predmet===predmet&&z.semestar===sem); }
 function avgOcjena(arr) {
@@ -824,6 +850,27 @@ document.addEventListener('keydown', function(e) {
 // Vraća TRUE ako je čas otkazan za dati datum
 function casOtkazan(casId, datum) {
   return (DB.otkazani||[]).some(o=>o.casId===casId && o.datum===datum);
+}
+
+// Vraća lekciju za određeni čas (pojedinačni) za dati datum
+// Prvo traži po casId, ako nema - po razredId+predmet+datum (fallback za stare lekcije)
+function getLekcijaZaCas(casId, razredId, predmet, datum) {
+  // Prioritet: lekcija s eksplicitnim casId
+  let l = DB.lekcije.find(x=>x.casId===casId && x.datum===datum);
+  if (l) return l;
+  // Ako postoje BILO KOJE lekcije s casId za taj predmet/dan, NE koristi generičku
+  // (jer znači da je nastavnik počeo praviti pojedinačne)
+  const imaPojedinacne = DB.lekcije.some(x=>x.razredId===razredId && x.predmet===predmet && x.datum===datum && x.casId);
+  if (imaPojedinacne) return null;
+  // Fallback - stara generička lekcija za predmet+datum
+  return DB.lekcije.find(x=>x.razredId===razredId && x.predmet===predmet && x.datum===datum && !x.casId);
+}
+
+// Vraća sve časove tog dana za isti razred+predmet (za dan-d)
+function getCasoviIstogPredmetaDan(razredId, predmet, datum) {
+  const day = new Date(datum).getDay();
+  return DB.casovi.filter(c=>c.razredId===razredId && c.predmet===predmet && c.dan===day)
+    .sort((a,b)=>a.vrijeme.localeCompare(b.vrijeme));
 }
 // Vraća zamjenski nastavnikId ako postoji za dati datum, inače null
 function casZamjena(casId, datum) {
@@ -2125,23 +2172,38 @@ RENDERERS.dnevnik = function(c, state) {
   if (!dostupniPredmeti.length) DB.predmeti.forEach(p=>dostupniPredmeti.push(p));
   const predmet = document.getElementById('dnPredmet')?.value || state.predmet || (trenutni?trenutni.predmet:'') || dostupniPredmeti[0];
   const datum = document.getElementById('dnDatum')?.value || state.datum || todayISO();
-  const sem = getCurrentSemester();
-  const semZatvoren = isSemesterZatvoren(sem);
+  const sem = getCurrentSemester(razredId);
+  const semZatvoren = isSemesterZatvoren(sem, razredId);
   
   // Da li je trenutno odabran čas zaista naš trenutni čas?
   const naTrenutnomCasu = trenutni && razredId===trenutni.razredId && predmet===trenutni.predmet && datum===todayISO();
   const locked = isSemesterLocked(razredId, predmet, sem) || semZatvoren;
   const ispit = DB.ispitivanja.find(i=>i.razredId===razredId && i.predmet===predmet && i.datum===datum);
   const zadaca = DB.domaci.find(z=>z.razredId===razredId && z.predmet===predmet && z.rok===datum);
-  const lekcija = DB.lekcije.find(l=>l.razredId===razredId && l.predmet===predmet && l.datum===datum);
+  
+  // VIŠE ČASOVA istog predmeta? - dropdown selector
+  const casoviIstogPredmeta = getCasoviIstogPredmetaDan(razredId, predmet, datum);
+  // Defaultno: ako je trenutni naš čas - postavi ga; inače prvi čas dana
+  let selektovaniCasId = +(document.getElementById('dnCas')?.value) || state.casId || 
+    (trenutni && trenutni.razredId===razredId && trenutni.predmet===predmet ? trenutni.id : null) ||
+    (casoviIstogPredmeta[0]?.id);
+  // Provjeri da li je odabrani čas u listi - ako nije, koristi prvi
+  if (selektovaniCasId && !casoviIstogPredmeta.find(c=>c.id===selektovaniCasId)) {
+    selektovaniCasId = casoviIstogPredmeta[0]?.id;
+  }
+  const selCas = casoviIstogPredmeta.find(c=>c.id===selektovaniCasId);
+  
+  // Lekcija - za specifičan čas ili generička
+  const lekcija = getLekcijaZaCas(selektovaniCasId, razredId, predmet, datum);
   const ucenici = DB.ucenici.filter(u=>u.razredId===razredId);
   
-  // Statistika dana
-  const danPris = DB.prisustva.filter(p=>p.predmet===predmet && p.datum===datum && ucenici.find(u=>u.id===p.ucenikId));
-  const brP = danPris.filter(p=>p.status==='P').length + (ucenici.length - danPris.length);
+  // Statistika za TRENUTNI ČAS (ne svi časovi tog dana)
+  const danPris = ucenici.map(u=>getPrisustvoZaCas(u.id, predmet, datum, selektovaniCasId)).filter(Boolean);
   const brO = danPris.filter(p=>p.status==='O').length;
   const brK = danPris.filter(p=>p.status==='K').length;
   const brI = danPris.filter(p=>p.status==='I').length;
+  // Prisutni = ukupno - sve ne-P statuse
+  const brP = ucenici.length - brO - brK - brI;
   
   let html = '<div class="flex flex-wrap justify-between items-center gap-3 mb-4">'+
     '<h2 class="text-3xl font-bold">📖 Dnevnik</h2>'+
@@ -2159,7 +2221,20 @@ RENDERERS.dnevnik = function(c, state) {
     '<select id="dnPredmet" onchange="navigate(\'dnevnik\')" class="w-full px-3 py-2 border rounded-lg">'+dostupniPredmeti.map(p=>'<option'+(p===predmet?' selected':'')+'>'+p+'</option>').join('')+'</select></div>'+
     '<div><label class="text-xs font-semibold text-gray-600 uppercase block mb-1">Datum</label>'+
     '<input type="date" id="dnDatum" value="'+datum+'" onchange="navigate(\'dnevnik\')" class="w-full px-3 py-2 border rounded-lg"></div>'+
-    '</div>';
+    '</div>'+
+    // Diskretan selektor časa SAMO ako ima više od jednog časa istog predmeta tog dana
+    (casoviIstogPredmeta.length > 1 ? 
+      '<div class="flex flex-wrap items-center gap-2 mb-3 text-sm">'+
+      '<label class="text-gray-600">Čas:</label>'+
+      '<select id="dnCas" onchange="navigate(\'dnevnik\')" class="px-3 py-1.5 border rounded-lg text-sm">'+
+      casoviIstogPredmeta.map(function(c, i){
+        const ima = DB.lekcije.find(l=>l.casId===c.id && l.datum===datum);
+        return '<option value="'+c.id+'"'+(c.id===selektovaniCasId?' selected':'')+'>'+
+          (i+1)+'. ('+c.vrijeme+')'+(ima?' ✓':'')+
+          '</option>';
+      }).join('')+
+      '</select>'+
+      '</div>' : '');
   
   const semInfo = getSemesterInfo(sem);
   const semNaziv = semInfo ? semInfo.naziv+' (semestar '+sem+')' : 'Semestar '+sem;
@@ -2239,12 +2314,19 @@ RENDERERS.dnevnik = function(c, state) {
   }
   
   // GRID 2 KOLONE - lijevo lekcija, desno ispiti/zadaće
+  const casoviSaLekcijama = casoviIstogPredmeta.filter(c=>DB.lekcije.find(l=>l.casId===c.id && l.datum===datum)).length;
+  const lekcijaNaslov = casoviIstogPredmeta.length>1 ? 
+    'Lekcija za '+(casoviIstogPredmeta.findIndex(c=>c.id===selektovaniCasId)+1)+'. čas ('+(selCas?selCas.vrijeme:'')+')'
+    : 'Lekcija za današnji čas';
   html += '<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">'+
     // LEKCIJA (2/3 širine)
     '<div class="lg:col-span-2 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-5">'+
-    '<div class="flex justify-between items-center mb-3">'+
-    '<h3 class="font-bold text-blue-900 flex items-center gap-2"><svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>Lekcija za današnji čas</h3>'+
-    '<button onclick="openLekcijaModal('+razredId+',\''+predmet+'\',\''+datum+'\')" class="btn-primary px-3 py-1.5 rounded-lg text-sm font-medium">'+(lekcija?'✎ Uredi':'+ Dodaj lekciju')+'</button>'+
+    '<div class="flex justify-between items-center mb-3 flex-wrap gap-2">'+
+    '<h3 class="font-bold text-blue-900 flex items-center gap-2"><svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>'+escapeHtml(lekcijaNaslov)+'</h3>'+
+    '<div class="flex gap-2">'+
+    (casoviIstogPredmeta.length>1 && casoviSaLekcijama>0 ? '<button onclick="kopirajLekcijuSaDrugogCasa('+razredId+',\''+escapeHtml(predmet).replace(/\x27/g,'%27')+'\',\''+datum+'\','+selektovaniCasId+')" class="btn-secondary px-3 py-1.5 rounded-lg text-sm">📋 Kopiraj sa drugog časa</button>' : '')+
+    '<button onclick="openLekcijaModalZaCas('+razredId+',\''+predmet+'\',\''+datum+'\','+selektovaniCasId+')" class="btn-primary px-3 py-1.5 rounded-lg text-sm font-medium">'+(lekcija?'✎ Uredi':'+ Dodaj lekciju')+'</button>'+
+    '</div>'+
     '</div>'+
     (lekcija?'<div class="bg-white/80 rounded-lg p-4 border border-blue-100">'+
       '<div class="flex justify-between items-start mb-2 flex-wrap gap-2">'+
@@ -2297,7 +2379,9 @@ RENDERERS.dnevnik = function(c, state) {
   html += '<div class="bg-white border rounded-xl shadow-sm overflow-hidden mb-4">'+
     '<div class="p-4 border-b bg-gradient-to-r from-blue-600 to-blue-700 text-white">'+
     '<h3 class="font-bold text-lg flex items-center justify-between">'+
-    '<span class="flex items-center gap-2">👥 Učenici i ocjenjivanje</span>'+
+    '<span class="flex items-center gap-2">👥 Učenici i ocjenjivanje'+
+    (casoviIstogPredmeta.length>1 && selCas ? ' <span class="text-xs bg-white/20 px-2 py-0.5 rounded ml-1">'+((casoviIstogPredmeta.findIndex(c=>c.id===selektovaniCasId)+1))+'. čas ('+selCas.vrijeme+')</span>' : '')+
+    '</span>'+
     '<span class="text-sm font-normal opacity-90">'+ucenici.length+' učenika</span>'+
     '</h3>'+
     '</div>'+
@@ -2314,14 +2398,16 @@ RENDERERS.dnevnik = function(c, state) {
     '</tr></thead><tbody>';
   
   ucenici.forEach(function(u,i){
-    const pris = DB.prisustva.find(p=>p.ucenikId===u.id && p.predmet===predmet && p.datum===datum);
+    // prisustvo se sad veže za KONKRETAN ČAS (ako ima više časova istog predmeta u danu)
+    const pris = getPrisustvoZaCas(u.id, predmet, datum, selektovaniCasId);
     const stat = pris?pris.status:'P';
     const sveOcj = DB.ocjene.filter(o=>o.ucenikId===u.id && o.predmet===predmet);
     const prosjek = avgOcjena(sveOcj);
+    const casIdArg = selektovaniCasId||'null';
     html += '<tr>'+
       '<td class="font-semibold text-gray-500">'+(i+1)+'</td>'+
       '<td style="text-align:left;padding-left:16px"><div class="font-semibold">'+escapeHtml(u.prezime+' '+u.ime)+'</div></td>'+
-      '<td><select onchange="setPrisustvo('+u.id+',\''+predmet+'\',\''+datum+'\',this.value,this)" class="px-2 py-1 border rounded-lg w-full font-semibold status-'+stat+'">'+
+      '<td><select onchange="setPrisustvo('+u.id+',\''+predmet+'\',\''+datum+'\',this.value,this,'+casIdArg+')" class="px-2 py-1 border rounded-lg w-full font-semibold status-'+stat+'">'+
       '<option value="P"'+(stat==='P'?' selected':'')+'>✓ P</option>'+
       '<option value="K"'+(stat==='K'?' selected':'')+'>⏰ K</option>'+
       '<option value="O"'+(stat==='O'?' selected':'')+'>✗ O</option>'+
@@ -2360,8 +2446,23 @@ function renderZakljucnaSamoPrikaz(ucenikId, predmet) {
   return '<span class="text-gray-500 text-sm" title="prijedlog">~'+avg+'</span>';
 }
 
+// Wrapper - poziva specifičnu modal za određeni čas ili fallback (kompatibilnost)
+function openLekcijaModalZaCas(razredId, predmet, datum, casId) {
+  return openLekcijaModalInner(razredId, predmet, datum, casId);
+}
+
 function openLekcijaModal(razredId, predmet, datum) {
-  const ex = DB.lekcije.find(l=>l.razredId===razredId && l.predmet===predmet && l.datum===datum);
+  return openLekcijaModalInner(razredId, predmet, datum, null);
+}
+
+function openLekcijaModalInner(razredId, predmet, datum, casId) {
+  // ex - postojeća lekcija (specifična za čas ako je casId, inače generička)
+  const ex = casId 
+    ? DB.lekcije.find(l=>l.casId===casId && l.datum===datum)
+    : DB.lekcije.find(l=>l.razredId===razredId && l.predmet===predmet && l.datum===datum && !l.casId);
+  
+  // Info o času (ako je casId)
+  const cas = casId ? DB.casovi.find(c=>c.id===casId) : null;
   // prošle lekcije iz istog predmeta i razreda (bez današnje)
   const prosle = DB.lekcije.filter(l=>l.razredId===razredId && l.predmet===predmet && l.datum!==datum)
     .sort((a,b)=>b.datum.localeCompare(a.datum));
@@ -2436,9 +2537,105 @@ function openLekcijaModal(razredId, predmet, datum) {
     const fd = new FormData(e.target);
     const data = { naslov:fd.get('naslov'), opis:fd.get('opis'), tip:fd.get('tip'), ostvarena:fd.get('ostvarena')==='on' };
     if (ex) { Object.assign(ex, data); }
-    else DB.lekcije.push(Object.assign({ id: Date.now(), razredId:razredId, predmet:predmet, datum:datum, nastavnikId:currentUser.id }, data));
-    saveData(); closeModal(); navigate('dnevnik'); showNotification('Lekcija sačuvana!');
+    else DB.lekcije.push(Object.assign({ id: Date.now(), razredId:razredId, predmet:predmet, datum:datum, nastavnikId:currentUser.id, casId: casId||null }, data));
+    saveData(); closeModal(); navigate('dnevnik', viewState); showNotification('Lekcija sačuvana!');
   };
+}
+
+// Kopiraj lekciju sa drugog časa istog dana
+function kopirajLekcijuSaDrugogCasa(razredId, predmet, datum, trenutniCasId) {
+  predmet = decodeURIComponent(predmet);
+  const casovi = getCasoviIstogPredmetaDan(razredId, predmet, datum).filter(c=>c.id!==trenutniCasId);
+  // Samo časovi koji imaju lekciju
+  const sLekcijom = casovi.filter(c=>DB.lekcije.find(l=>l.casId===c.id && l.datum===datum));
+  if (!sLekcijom.length) {
+    // Provjeri ima li generičke
+    const generic = DB.lekcije.find(l=>l.razredId===razredId && l.predmet===predmet && l.datum===datum && !l.casId);
+    if (!generic) { showNotification('Nijedan drugi čas nema lekciju za kopiranje','error'); return; }
+  }
+  
+  let html = '<h3 class="text-xl font-bold mb-3">📋 Kopiraj lekciju sa drugog časa</h3>'+
+    '<p class="text-sm text-gray-600 mb-3">Odaberi sa kojeg časa želiš kopirati lekciju:</p>'+
+    '<div class="space-y-2 mb-3">';
+  
+  sLekcijom.forEach(function(c, idx){
+    const l = DB.lekcije.find(x=>x.casId===c.id && x.datum===datum);
+    const indeks = getCasoviIstogPredmetaDan(razredId, predmet, datum).findIndex(x=>x.id===c.id);
+    html += '<button onclick="potvrdiKopiranjeLekcije('+razredId+',\''+escapeHtml(predmet).replace(/\x27/g,'%27')+'\',\''+datum+'\','+trenutniCasId+','+c.id+')" class="w-full bg-white hover:bg-blue-50 border-2 border-blue-200 hover:border-blue-500 rounded-lg p-3 text-left transition">'+
+      '<div class="flex justify-between items-start gap-2">'+
+      '<div class="flex-1 min-w-0">'+
+      '<div class="font-bold">'+(indeks+1)+'. čas • '+c.vrijeme+'</div>'+
+      '<div class="text-sm text-gray-700 mt-1"><b>'+escapeHtml(l.naslov)+'</b></div>'+
+      (l.opis?'<div class="text-xs text-gray-600 mt-1 line-clamp-2">'+escapeHtml(l.opis)+'</div>':'')+
+      (l.tip?'<span class="badge bg-blue-100 text-blue-700 mt-1 text-[10px]">'+escapeHtml(l.tip)+'</span>':'')+
+      '</div>'+
+      '<span class="text-blue-600 text-xl">→</span>'+
+      '</div></button>';
+  });
+  // Ako ima generičke lekcije, dodaj i nju
+  const generic = DB.lekcije.find(l=>l.razredId===razredId && l.predmet===predmet && l.datum===datum && !l.casId);
+  if (generic) {
+    html += '<button onclick="potvrdiKopiranjeLekcijeFromGeneric('+razredId+',\''+escapeHtml(predmet).replace(/\x27/g,'%27')+'\',\''+datum+'\','+trenutniCasId+')" class="w-full bg-yellow-50 hover:bg-yellow-100 border-2 border-yellow-300 hover:border-yellow-500 rounded-lg p-3 text-left transition">'+
+      '<div class="flex justify-between items-start gap-2">'+
+      '<div class="flex-1 min-w-0">'+
+      '<div class="font-bold">Generička lekcija (za sve časove)</div>'+
+      '<div class="text-sm text-gray-700 mt-1"><b>'+escapeHtml(generic.naslov)+'</b></div>'+
+      (generic.opis?'<div class="text-xs text-gray-600 mt-1 line-clamp-2">'+escapeHtml(generic.opis)+'</div>':'')+
+      '</div>'+
+      '<span class="text-yellow-600 text-xl">→</span>'+
+      '</div></button>';
+  }
+  
+  html += '</div>'+
+    '<div class="flex justify-end gap-2 pt-3 border-t"><button onclick="closeModal()" class="btn-secondary px-4 py-2 rounded-lg">Otkaži</button></div>';
+  showModal(html);
+}
+
+function potvrdiKopiranjeLekcije(razredId, predmet, datum, ciljCasId, izvorCasId) {
+  predmet = decodeURIComponent(predmet);
+  const izvor = DB.lekcije.find(l=>l.casId===izvorCasId && l.datum===datum);
+  if (!izvor) return;
+  // Provjeri postoji li već lekcija za ciljni čas
+  let cilj = DB.lekcije.find(l=>l.casId===ciljCasId && l.datum===datum);
+  if (cilj) {
+    if (!confirm('Ciljani čas već ima lekciju. Prepisati?')) return;
+    cilj.naslov = izvor.naslov;
+    cilj.opis = izvor.opis;
+    cilj.tip = izvor.tip;
+    cilj.ostvarena = izvor.ostvarena;
+  } else {
+    DB.lekcije.push({
+      id: Date.now(),
+      razredId: razredId,
+      predmet: predmet,
+      datum: datum,
+      casId: ciljCasId,
+      nastavnikId: currentUser.id,
+      naslov: izvor.naslov,
+      opis: izvor.opis,
+      tip: izvor.tip,
+      ostvarena: izvor.ostvarena
+    });
+  }
+  saveData(); closeModal(); navigate('dnevnik', viewState); showNotification('✓ Lekcija kopirana!');
+}
+
+function potvrdiKopiranjeLekcijeFromGeneric(razredId, predmet, datum, ciljCasId) {
+  predmet = decodeURIComponent(predmet);
+  const izvor = DB.lekcije.find(l=>l.razredId===razredId && l.predmet===predmet && l.datum===datum && !l.casId);
+  if (!izvor) return;
+  let cilj = DB.lekcije.find(l=>l.casId===ciljCasId && l.datum===datum);
+  if (cilj) {
+    if (!confirm('Ciljani čas već ima lekciju. Prepisati?')) return;
+    cilj.naslov = izvor.naslov; cilj.opis = izvor.opis; cilj.tip = izvor.tip;
+  } else {
+    DB.lekcije.push({
+      id: Date.now(), razredId, predmet, datum, casId: ciljCasId,
+      nastavnikId: currentUser.id,
+      naslov: izvor.naslov, opis: izvor.opis, tip: izvor.tip
+    });
+  }
+  saveData(); closeModal(); navigate('dnevnik', viewState); showNotification('✓ Lekcija kopirana!');
 }
 
 // Učitaj prošlu lekciju u formu
@@ -2506,22 +2703,38 @@ function brzoDodajLekciju(razredId, predmet, datum, lekcijaId) {
   }, 100);
 }
 
-function setPrisustvo(ucenikId, predmet, datum, status, selectEl) {
-  let p = DB.prisustva.find(x=>x.ucenikId===ucenikId && x.predmet===predmet && x.datum===datum);
+function setPrisustvo(ucenikId, predmet, datum, status, selectEl, casId) {
+  // prisustvo se sad veže za KONKRETAN ČAS (casId). Stara prisustva bez casId tretiramo kao generička.
+  // Prvo provjeri ima li prisustvo za TAJ čas
+  let p = casId ? DB.prisustva.find(x=>x.ucenikId===ucenikId && x.predmet===predmet && x.datum===datum && x.casId===casId)
+                : DB.prisustva.find(x=>x.ucenikId===ucenikId && x.predmet===predmet && x.datum===datum && !x.casId);
   let kasnjenjeMin = null;
   if (status==='K') {
     const min = prompt('Koliko minuta zakasnio?', '5');
     if (min===null) { if (selectEl) selectEl.value = p?p.status:'P'; return; }
     kasnjenjeMin = parseInt(min)||5;
   }
-  if (p) { p.status = status; p.kasnjenjeMin = kasnjenjeMin; }
-  else DB.prisustva.push({ id: Date.now(), ucenikId:ucenikId, predmet:predmet, datum:datum, status:status, kasnjenjeMin:kasnjenjeMin });
+  if (p) { p.status = status; p.kasnjenjeMin = kasnjenjeMin; if (casId) p.casId = casId; }
+  else DB.prisustva.push({ id: Date.now(), ucenikId:ucenikId, predmet:predmet, datum:datum, status:status, kasnjenjeMin:kasnjenjeMin, casId: casId||null });
   const ucUser = DB.users.find(u=>u.ucenikId===ucenikId);
   if (ucUser && (status==='O' || status==='K')) {
     DB.obavijesti.push({ id:Date.now()+Math.random(), naslov:status==='K'?'⏰ Kašnjenje':'❌ Izostanak', tekst:status==='K'?'Zakasnili '+kasnjenjeMin+' min na času '+predmet:'Izostanak sa časa '+predmet, datum:todayISO(), za:null, zaId:ucUser.id });
   }
   saveData();
   if (selectEl) { selectEl.className = selectEl.className.replace(/status-[PKOI]/g,'')+' status-'+status; }
+}
+
+// Helper - vraća prisustvo za dati učenik+predmet+datum+čas
+// Backward compat: ako nema za taj čas, vrati generičko (bez casId) - ali samo ako NEMA pojedinačnih za bilo koji čas tog dana
+function getPrisustvoZaCas(ucenikId, predmet, datum, casId) {
+  // 1) Probaj prisustvo za taj specifičan čas
+  let p = DB.prisustva.find(x=>x.ucenikId===ucenikId && x.predmet===predmet && x.datum===datum && x.casId===casId);
+  if (p) return p;
+  // 2) Ako postoje neka pojedinačna (sa casId) za taj predmet/dan/učenik, NE koristi generičko
+  const imaPojedinacne = DB.prisustva.some(x=>x.ucenikId===ucenikId && x.predmet===predmet && x.datum===datum && x.casId);
+  if (imaPojedinacne) return null;
+  // 3) Fallback - generičko prisustvo (staro bez casId)
+  return DB.prisustva.find(x=>x.ucenikId===ucenikId && x.predmet===predmet && x.datum===datum && !x.casId);
 }
 
 function renderOcjeneCol(ucenikId, predmet, tip, datum, locked) {
@@ -2561,9 +2774,11 @@ function dodajOcjenu(ucenikId, predmet, tip, datum) {
 
 function potvrdiOcjenu(ucenikId, predmet, tip, datum, vrijednost) {
   // SIGURNOSNA PROVJERA - semestar otvoren?
-  const sem = getCurrentSemester();
-  if (isSemesterZatvoren(sem)) {
-    const semInfo = getSemesterInfo(sem);
+  const ucenik = DB.ucenici.find(u=>u.id===ucenikId);
+  const razredId = ucenik?ucenik.razredId:null;
+  const sem = getCurrentSemester(razredId);
+  if (isSemesterZatvoren(sem, razredId)) {
+    const semInfo = getSemesterInfo(sem, razredId);
     showNotification('🔒 '+(semInfo?semInfo.naziv:'Semestar '+sem)+' je ZATVOREN. Admin mora otvoriti semestar.', 'error');
     closeModal();
     return;
@@ -4658,8 +4873,8 @@ RENDERERS.ocjene = function(c) {
   const dostupniPredmeti = (currentUser.zaduzenja||[]).map(z=>z.predmet);
   if (!dostupniPredmeti.length) DB.predmeti.forEach(p=>dostupniPredmeti.push(p));
   const predmet = document.getElementById('ocPredmet')?.value || dostupniPredmeti[0];
-  const sem = getCurrentSemester();
-  const semZatvoren = isSemesterZatvoren(sem);
+  const sem = getCurrentSemester(razredId);
+  const semZatvoren = isSemesterZatvoren(sem, razredId);
   const locked = isSemesterLocked(razredId, predmet, sem) || semZatvoren;
   const ucenici = DB.ucenici.filter(u=>u.razredId===razredId);
   // Koliko ima zakljucenih u trenutnom semestru?
@@ -4902,15 +5117,24 @@ RENDERERS.semestri = function(c) {
       '</div>';
   }
   
+  // osiguraj id za sve semestre (migracija starih)
+  DB.semestri.forEach(function(s,i){ if (!s.id) s.id = Date.now()+i; });
+  
   // Lista svih semestara
   html += '<h3 class="font-bold text-lg mb-3 mt-6">📋 Svi semestri</h3>';
   html += '<div class="space-y-3">';
-  DB.semestri.slice().sort((a,b)=>a.datumOd.localeCompare(b.datumOd)).forEach(function(s){
+  DB.semestri.slice().sort(function(a,b){
+    if (a.datumOd!==b.datumOd) return a.datumOd.localeCompare(b.datumOd);
+    return a.broj - b.broj;
+  }).forEach(function(s){
     const stat = semStat(s);
     const isAct = s.broj===aktSem && s.datumOd<=today && s.datumDo>=today;
     const istekao = s.datumDo < today;
     const buduci = s.datumOd > today;
     const zatvoren = s.zatvoren !== false; // default true
+    const obuhvataSve = !s.razrediIds || !s.razrediIds.length;
+    const obuhvatTekst = obuhvataSve ? '🌐 SVI RAZREDI' : '🎓 '+(s.razrediIds||[]).map(rid=>getRazredName(rid)).join(', ');
+    const semId = s.id;
     html += '<div class="bg-white border-2 rounded-xl shadow-sm overflow-hidden '+(isAct?'border-blue-500':zatvoren?'border-red-200':'border-green-200')+'">'+
       '<div class="p-4 bg-gradient-to-r '+(zatvoren?'from-red-50 to-pink-50':'from-green-50 to-emerald-50')+' border-b">'+
       '<div class="flex flex-wrap justify-between items-start gap-3">'+
@@ -4919,8 +5143,11 @@ RENDERERS.semestri = function(c) {
       '<div>'+
       '<h3 class="font-bold text-xl">'+escapeHtml(s.naziv)+'</h3>'+
       '<p class="text-sm text-gray-600">'+fmtDate(s.datumOd)+' - '+fmtDate(s.datumDo)+'</p>'+
-      '<div class="flex gap-1 mt-2 flex-wrap">'+
-      (isAct?'<span class="badge bg-blue-100 text-blue-700 font-semibold">▶ AKTIVAN SEMESTAR</span>':'')+
+      '<div class="flex gap-1 mt-1 flex-wrap">'+
+      '<span class="badge '+(obuhvataSve?'bg-blue-100 text-blue-700':'bg-purple-100 text-purple-700')+' font-semibold text-[10px]">'+obuhvatTekst+'</span>'+
+      '</div>'+
+      '<div class="flex gap-1 mt-1 flex-wrap">'+
+      (isAct?'<span class="badge bg-blue-100 text-blue-700 font-semibold">▶ AKTIVAN</span>':'')+
       (istekao?'<span class="badge bg-gray-200 text-gray-700">⏱ Istekao</span>':'')+
       (buduci?'<span class="badge bg-blue-100 text-blue-700">📅 Budući</span>':'')+
       (zatvoren?'<span class="badge bg-red-600 text-white font-bold">🔒 ZATVOREN</span>':'<span class="badge bg-green-600 text-white font-bold">🔓 OTVOREN</span>')+
@@ -4928,9 +5155,9 @@ RENDERERS.semestri = function(c) {
       '</div>'+
       '</div>'+
       '<div class="flex gap-2 flex-wrap items-start">'+
-      '<button onclick="toggleSemZatvoren('+s.broj+')" class="'+(zatvoren?'btn-success':'btn-danger')+' px-4 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2">'+(zatvoren?'<span class="text-lg">🔓</span> OTVORI':'<span class="text-lg">🔒</span> ZATVORI')+'</button>'+
-      '<button onclick="otvoriSemModal('+s.broj+')" class="btn-secondary px-3 py-2.5 rounded-lg text-sm">✎ Uredi</button>'+
-      '<button onclick="obrisiSem('+s.broj+')" class="text-red-600 hover:bg-red-50 px-3 py-2.5 rounded-lg text-sm border border-red-200">🗑</button>'+
+      '<button onclick="toggleSemZatvoren('+semId+')" class="'+(zatvoren?'btn-success':'btn-danger')+' px-4 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2">'+(zatvoren?'<span class="text-lg">🔓</span> OTVORI':'<span class="text-lg">🔒</span> ZATVORI')+'</button>'+
+      '<button onclick="otvoriSemModal('+semId+')" class="btn-secondary px-3 py-2.5 rounded-lg text-sm">✎ Uredi</button>'+
+      '<button onclick="obrisiSem('+semId+')" class="text-red-600 hover:bg-red-50 px-3 py-2.5 rounded-lg text-sm border border-red-200">🗑</button>'+
       '</div>'+
       '</div></div>'+
       '<div class="grid grid-cols-3 gap-3 p-4">'+
@@ -4957,15 +5184,28 @@ RENDERERS.semestri = function(c) {
   c.innerHTML = html;
 };
 
-function otvoriSemModal(broj) {
-  // default zatvoren=true za nove semestre
-  const s = broj ? DB.semestri.find(x=>x.broj===broj) : { broj: (Math.max.apply(null, DB.semestri.map(x=>x.broj).concat([0]))+1), naziv:'', datumOd:todayISO(), datumDo:todayISO(), zatvoren:true };
-  const zatvorenChecked = (s.zatvoren !== false); // default true
-  showModal('<h3 class="text-xl font-bold mb-4">'+(broj?'✎ Uredi semestar':'+ Novi semestar')+'</h3>'+
+function otvoriSemModal(id) {
+  // id je sad unique - dodajem ako nemamo
+  if (id && DB.semestri.length) {
+    DB.semestri.forEach(function(s,i){ if (!s.id) s.id = Date.now()+i; });
+  }
+  const s = id ? DB.semestri.find(x=>x.id===id) : { 
+    id: Date.now(),
+    broj: 1, 
+    naziv:'', 
+    datumOd: todayISO(), 
+    datumDo: todayISO(), 
+    zatvoren: true,
+    razrediIds: [] // prazno = globalno za sve razrede
+  };
+  const zatvorenChecked = (s.zatvoren !== false);
+  const obuhvataSve = !s.razrediIds || !s.razrediIds.length;
+  
+  showModal('<h3 class="text-xl font-bold mb-4">'+(id?'✎ Uredi semestar':'+ Novi semestar')+'</h3>'+
     '<form id="semf" class="space-y-3">'+
     '<div class="grid grid-cols-2 gap-3">'+
     '<div><label class="text-sm font-medium block mb-1">Broj semestra *</label>'+
-    '<input name="broj" type="number" min="1" value="'+s.broj+'" required '+(broj?'readonly':'')+' class="w-full px-3 py-2 border rounded-lg'+(broj?' bg-gray-100':'')+'"></div>'+
+    '<input name="broj" type="number" min="1" value="'+s.broj+'" required class="w-full px-3 py-2 border rounded-lg"></div>'+
     '<div><label class="text-sm font-medium block mb-1">Naziv *</label>'+
     '<input name="naziv" value="'+escapeHtml(s.naziv)+'" required class="w-full px-3 py-2 border rounded-lg" placeholder="npr. Prvo polugodište"></div>'+
     '</div>'+
@@ -4975,46 +5215,112 @@ function otvoriSemModal(broj) {
     '<div><label class="text-sm font-medium block mb-1">Datum završetka *</label>'+
     '<input name="datumDo" type="date" value="'+s.datumDo+'" required class="w-full px-3 py-2 border rounded-lg"></div>'+
     '</div>'+
+    // OBUHVAT - globalno vs po razredima
+    '<div class="bg-blue-50 border-2 border-blue-200 rounded-xl p-3">'+
+    '<label class="text-sm font-bold text-blue-900 block mb-2">🎯 Za koje razrede vrijedi semestar?</label>'+
+    '<div class="space-y-2 mb-2">'+
+    '<label class="flex items-start gap-2 p-2 bg-white rounded-lg cursor-pointer hover:bg-blue-100">'+
+    '<input type="radio" name="obuhvat" value="globalno" '+(obuhvataSve?'checked':'')+' onchange="toggleSemObuhvat()" class="w-4 h-4 mt-1">'+
+    '<div class="text-sm"><b>🌐 Globalno - svi razredi</b><div class="text-xs text-gray-600">Vrijedi za SVE razrede u školi (default opcija)</div></div></label>'+
+    '<label class="flex items-start gap-2 p-2 bg-white rounded-lg cursor-pointer hover:bg-blue-100">'+
+    '<input type="radio" name="obuhvat" value="razredi" '+(!obuhvataSve?'checked':'')+' onchange="toggleSemObuhvat()" class="w-4 h-4 mt-1">'+
+    '<div class="text-sm"><b>🎓 Samo odabrani razredi</b><div class="text-xs text-gray-600">Vrijedi samo za razrede koje odabereš (npr. različito za starije i mlađe razrede)</div></div></label>'+
+    '</div>'+
+    '<div id="semRazrediBox" class="'+(obuhvataSve?'hidden':'')+' bg-white border rounded-lg p-2">'+
+    '<div class="text-xs font-semibold text-gray-700 mb-2">Odaberi razrede:</div>'+
+    '<div class="flex gap-1 mb-2"><button type="button" onclick="semSelektujSve(true)" class="text-xs text-blue-600 hover:underline">✓ Svi</button> | <button type="button" onclick="semSelektujSve(false)" class="text-xs text-blue-600 hover:underline">✗ Nijedan</button></div>'+
+    '<div class="grid grid-cols-2 md:grid-cols-3 gap-1">'+
+    DB.razredi.map(function(r){
+      const checked = (s.razrediIds||[]).indexOf(r.id)>=0 ? 'checked' : '';
+      return '<label class="flex items-center gap-2 p-2 hover:bg-gray-50 cursor-pointer rounded text-sm"><input type="checkbox" class="semRazCb w-4 h-4" value="'+r.id+'" '+checked+'><span>'+r.naziv+'</span></label>';
+    }).join('')+
+    '</div></div>'+
+    '</div>'+
     '<label class="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-lg cursor-pointer">'+
     '<input type="checkbox" name="zatvoren" '+(zatvorenChecked?'checked':'')+' class="w-5 h-5 mt-0.5">'+
     '<div class="text-sm"><b class="text-red-900">🔒 Semestar ZATVOREN</b><div class="text-xs text-red-800 mt-1">Nastavnici ne mogu unositi ni mijenjati ocjene. (Preporučeno za novi semestar - otvori ga ručno kad treba početi ocjenjivanje)</div></div>'+
     '</label>'+
-    '<div class="flex justify-end gap-2 pt-4 border-t"><button type="button" onclick="closeModal()" class="btn-secondary px-4 py-2 rounded-lg">Otkaži</button><button type="submit" class="btn-primary px-4 py-2 rounded-lg">Sačuvaj</button></div>'+
-    '</form>');
+    '<div class="flex justify-between gap-2 pt-4 border-t">'+
+    (id?'<button type="button" onclick="obrisiSem('+id+')" class="btn-danger px-3 py-2 rounded-lg text-sm">🗑 Obriši</button>':'<div></div>')+
+    '<div class="flex gap-2"><button type="button" onclick="closeModal()" class="btn-secondary px-4 py-2 rounded-lg">Otkaži</button><button type="submit" class="btn-primary px-4 py-2 rounded-lg">Sačuvaj</button></div>'+
+    '</div></form>');
+  
   document.getElementById('semf').onsubmit = function(e){
     e.preventDefault();
     const fd = new FormData(e.target);
-    const data = { broj:+fd.get('broj'), naziv:fd.get('naziv'), datumOd:fd.get('datumOd'), datumDo:fd.get('datumDo'), zatvoren:fd.get('zatvoren')==='on' };
+    const obuhvat = fd.get('obuhvat');
+    const razrediIds = obuhvat==='razredi' ? 
+      [].slice.call(document.querySelectorAll('.semRazCb:checked')).map(c=>+c.value) : [];
+    if (obuhvat==='razredi' && !razrediIds.length) {
+      showNotification('Odaberite barem jedan razred ili promijenite na globalno!','error');
+      return;
+    }
+    const data = { 
+      broj: +fd.get('broj'), 
+      naziv: fd.get('naziv'), 
+      datumOd: fd.get('datumOd'), 
+      datumDo: fd.get('datumDo'), 
+      zatvoren: fd.get('zatvoren')==='on',
+      razrediIds: razrediIds
+    };
     if (data.datumOd > data.datumDo) { showNotification('Datum početka mora biti prije završetka!','error'); return; }
-    if (broj) Object.assign(s, data);
-    else {
-      if (DB.semestri.find(x=>x.broj===data.broj)) { showNotification('Semestar broj '+data.broj+' već postoji!','error'); return; }
+    if (id) {
+      Object.assign(s, data);
+    } else {
+      // dozvoljeni duplikati broja ako su za različite razrede!
+      data.id = Date.now();
       DB.semestri.push(data);
     }
-    saveData(); closeModal(); navigate('semestri'); showNotification(broj?'Semestar izmijenjen':'Semestar dodan');
+    saveData(); closeModal(); navigate('semestri'); 
+    showNotification(id?'✓ Semestar izmijenjen':'✓ Semestar dodan');
   };
 }
 
-function toggleSemZatvoren(broj) {
-  const s = DB.semestri.find(x=>x.broj===broj);
+function toggleSemObuhvat() {
+  const radio = document.querySelector('input[name="obuhvat"]:checked');
+  if (!radio) return;
+  document.getElementById('semRazrediBox').classList.toggle('hidden', radio.value!=='razredi');
+}
+
+function semSelektujSve(svi) {
+  document.querySelectorAll('.semRazCb').forEach(c=>c.checked=svi);
+}
+
+function toggleSemZatvoren(idOrBroj) {
+  // idOrBroj može biti id (broj) - prvo pokušaj kao id, pa kao broj
+  let s = DB.semestri.find(x=>x.id===idOrBroj);
+  if (!s) s = DB.semestri.find(x=>x.broj===idOrBroj);
   if (!s) return;
   const action = s.zatvoren ? 'OTVORITI' : 'ZATVORITI';
-  if (!confirm((s.zatvoren?'🔓':'🔒')+' '+action+' semestar "'+s.naziv+'"?\n\n'+
+  const obuhvat = s.razrediIds && s.razrediIds.length ? 
+    'razredi: '+s.razrediIds.map(rid=>getRazredName(rid)).join(', ') : 'GLOBALNO (svi razredi)';
+  if (!confirm((s.zatvoren?'🔓':'🔒')+' '+action+' semestar "'+s.naziv+'"?\n\nObuhvat: '+obuhvat+'\n\n'+
     (s.zatvoren ? 'Nastavnici će ponovno moći unositi i mijenjati ocjene.' : 'Nastavnici NEĆE moći mijenjati ocjene dok je semestar zatvoren.'))) return;
   s.zatvoren = !s.zatvoren;
-  // obavijesti sve nastavnike
-  DB.users.filter(u=>u.role==='nastavnik').forEach(function(u){
-    DB.obavijesti.push({ id:Date.now()+Math.random(), naslov:(s.zatvoren?'🔒':'🔓')+' Semestar '+(s.zatvoren?'zatvoren':'otvoren'), tekst:s.naziv+': '+(s.zatvoren?'nije moguće mijenjati ocjene':'možete unositi ocjene'), datum:todayISO(), za:null, zaId:u.id });
+  // obavijesti SAMO relevantne nastavnike (one koji predaju u tim razredima)
+  let ciljaniNastIds = [];
+  if (s.razrediIds && s.razrediIds.length) {
+    DB.users.filter(u=>u.role==='nastavnik').forEach(function(u){
+      const moji = (u.zaduzenja||[]).reduce((acc,z)=>acc.concat(z.razrediIds||[]),[]);
+      if (s.razrediIds.some(rid=>moji.indexOf(rid)>=0)) ciljaniNastIds.push(u.id);
+    });
+  } else {
+    ciljaniNastIds = DB.users.filter(u=>u.role==='nastavnik').map(u=>u.id);
+  }
+  ciljaniNastIds.forEach(function(uid){
+    DB.obavijesti.push({ id:Date.now()+Math.random(), naslov:(s.zatvoren?'🔒':'🔓')+' Semestar '+(s.zatvoren?'zatvoren':'otvoren'), tekst:s.naziv+' ('+obuhvat+'): '+(s.zatvoren?'nije moguće mijenjati ocjene':'možete unositi ocjene'), datum:todayISO(), za:null, zaId:uid });
   });
   saveData(); navigate('semestri'); showNotification(s.zatvoren?'🔒 Semestar zatvoren':'🔓 Semestar otvoren');
 }
 
-function obrisiSem(broj) {
+function obrisiSem(idOrBroj) {
   if (DB.semestri.length<=1) { showNotification('Mora ostati barem jedan semestar!','error'); return; }
-  const s = DB.semestri.find(x=>x.broj===broj);
+  let s = DB.semestri.find(x=>x.id===idOrBroj);
+  if (!s) s = DB.semestri.find(x=>x.broj===idOrBroj);
+  if (!s) return;
   if (!confirm('🗑 Obrisati semestar "'+s.naziv+'"?\n\nOcjene iz tog semestra će ostati, ali nećete moći koristiti njegovu logiku.')) return;
-  DB.semestri = DB.semestri.filter(x=>x.broj!==broj);
-  saveData(); navigate('semestri'); showNotification('Semestar obrisan');
+  DB.semestri = DB.semestri.filter(x=>x!==s);
+  saveData(); closeModal(); navigate('semestri'); showNotification('Semestar obrisan');
 }
 
 RENDERERS.izvjestaji = function(c) {
