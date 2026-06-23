@@ -90,6 +90,12 @@
   .sidebar-item { border-left: 4px solid transparent; transition: all 0.15s; cursor: pointer; }
   .sidebar-item:hover { background: #f9fafb; }
   .sidebar-item.active { background: #eff6ff; color: #1e40af; border-left-color: #1e40af; font-weight: 600; }
+  .sidebar-group-header { user-select: none; }
+  .sidebar-group-header:hover .text-base { color: #1e40af; }
+  .sidebar-group-items { animation: slideDown .15s; }
+  @keyframes slideDown { from { opacity:0; max-height:0 } to { opacity:1; max-height:1000px } }
+  .rotate-90 { transform: rotate(90deg); display: inline-block; }
+  .sidebar-item-main { font-size: 0.95rem; }
   .sidebar-icon { color: #6b7280; display: inline-flex; }
   .sidebar-item.active .sidebar-icon { color: #1e40af; }
   .sidebar-item:hover .sidebar-icon { color: #1e40af; }
@@ -583,7 +589,13 @@ const DEFAULT_DATA = {
   zamjene: [], // { id, casId, datum, zamjenskiId, napomena, postavioId }
   popravni: [], // { id, ucenikId, predmet, tipoviIspita, razlog, datum, vrijeme, mjesto, semestar, status, nastavnikId, postavioId, opis }
   sveske: {}, // { userId: [ {id, naslov, sadrzaj, boja, datum, izmijenjeno, tagovi} ] } - eSveska stranice
-  biljezniceProf: [] // { id, nastavnikId, razredId, predmet, datum, oznake: { ucenikId: '+|-|o|+-|napomena' }, opis }
+  biljezniceProf: [], // { id, nastavnikId, razredId, predmet, datum, oznake, opis }
+  // === GOOGLE CLASSROOM-LIKE FUNKCIJE ===
+  stream: [], // { id, autorId, razredIds (svi razredi za koje vrijedi), tekst, datum, prilozi: [{tip,naziv,url|data}], reakcije:{emoji:[userIds]}, komentari:[{id,odId,tekst,datum}], pinned, tip:'objava|materijal|zadaca|kviz' }
+  predaje: [], // { id, zadacaId, ucenikId, tekst, prilozi:[], datumPredaje, ocjena, komentarNastavnika, datumOcjene, nastavnikId }
+  kvizovi: [], // { id, nastavnikId, razredId, predmet, naslov, opis, pitanja:[{id,tekst,tip:'choice|trueFalse|text',opcije:[],tacni:[]}], datumOd, datumDo, bodova, ocjenjivati }
+  kvizPokusaji: [], // { id, kvizId, ucenikId, odgovori:{pitanjeId:vrijednost}, bodova, ocjena, datumPokusaja, vrijemeUtrosceno }
+  komentariOcjene: [] // { id, ocjenaId, odId, tekst, datum, privatno } - razgovori oko ocjene
 };
 
 let DB;
@@ -1080,68 +1092,140 @@ const ICONS = {
   // Štit (shield-check)
   badge: svgIcon('<path d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"/>')
 };
+// GRUPIRANI MENU - lakše snalaženje, collapsible grupe
 const MENU = {
   admin: [
-    ['pocetna','Početna','home'],
-    ['korisnici','Korisnici','users'],
-    ['razredi','Razredi','school'],
-    ['ucenici','Učenici','student'],
-    ['predmeti','Predmeti','book'],
-    ['raspored','Raspored','cal'],
-    ['ispitivanja','Ispitivanja','exam'],
-    ['pravdanja_pregled','Pravdanja','doc'],
-    ['ocjene_pregled','Pregled ocjena','star'],
-    ['izvjestaji','Izvještaji','chart'],
-    ['semestri','Semestri','cal'],
-    ['popravni','Popravni ispiti','exam'],
-    ['esveska','eSveska','note'],
-    ['poruke','Poruke','mail'],
-    ['postavke','Postavke','set'],
-    ['odjava','Odjava','out']
+    { items: [
+      ['pocetna','Početna','home'],
+      ['stream','Stream / Vijesti','mail'],
+      ['kalendar','Kalendar','cal']
+    ]},
+    { group: '🛠️ Administracija', items: [
+      ['korisnici','Korisnici','users'],
+      ['razredi','Razredi','school'],
+      ['ucenici','Učenici','student'],
+      ['predmeti','Predmeti','book'],
+      ['raspored','Raspored','cal'],
+      ['semestri','Semestri','cal']
+    ]},
+    { group: '⚠️ Aktivnosti', items: [
+      ['ispitivanja','Ispitivanja','exam'],
+      ['popravni','Popravni','exam'],
+      ['pravdanja_pregled','Pravdanja','doc']
+    ]},
+    { group: '📊 Pregledi', items: [
+      ['ocjene_pregled','Pregled ocjena','star'],
+      ['izvjestaji','Izvještaji','chart']
+    ]},
+    { group: '👤 Lično', items: [
+      ['esveska','eSveska','note'],
+      ['poruke','Poruke','mail'],
+      ['postavke','Postavke','set'],
+      ['odjava','Odjava','out']
+    ]}
   ],
   nastavnik: [
-    ['pocetna','Početna','home'],
-    ['mojicasovi','Moji časovi','cal'],
-    ['dnevnik','Dnevnik','book'],
-    ['planprogram','Plan i program','folder'],
-    ['materijali','Materijali','doc'],
-    ['biljeske','Bilješke','note'],
-    ['esveska','eSveska','note'],
-    ['biljeznica','📓 Bilježnica','homework'],
-    ['domaci','Domaće zadaće','homework'],
-    ['ispitivanja','Ispitivanja','exam'],
-    ['popravni','Popravni','exam'],
-    ['redari','Redari','badge'],
-    ['mojrazred','Moj razred','school'],
-    ['pravdanja_razrednik','Pravdanja','doc'],
-    ['ucenici','Učenici','student'],
-    ['ocjene','Ocjene','star'],
-    ['raspored','Raspored','cal'],
-    ['poruke','Poruke','mail'],
-    ['postavke','Postavke','set'],
-    ['odjava','Odjava','out']
+    { items: [
+      ['pocetna','Početna','home'],
+      ['stream','Stream / Vijesti','mail'],
+      ['mojicasovi','Moji časovi','cal']
+    ]},
+    { group: '📖 Nastava', items: [
+      ['dnevnik','Dnevnik','book'],
+      ['planprogram','Plan i program','folder'],
+      ['materijali','Materijali','doc'],
+      ['biljeske','Bilješke','note'],
+      ['biljeznica','Bilježnica','homework']
+    ]},
+    { group: '📝 Zadaci i ispiti', items: [
+      ['domaci','Domaće zadaće','homework'],
+      ['kvizovi','Kvizovi','exam'],
+      ['ispitivanja','Ispitivanja','exam'],
+      ['popravni','Popravni','exam']
+    ]},
+    { group: '🎓 Učenici', items: [
+      ['ucenici','Učenici','student'],
+      ['ocjene','Ocjene','star'],
+      ['mojrazred','Moj razred','school'],
+      ['pravdanja_razrednik','Pravdanja','doc'],
+      ['redari','Redari','badge']
+    ]},
+    { group: '👤 Lično', items: [
+      ['raspored','Raspored','cal'],
+      ['esveska','eSveska','note'],
+      ['poruke','Poruke','mail'],
+      ['postavke','Postavke','set'],
+      ['odjava','Odjava','out']
+    ]}
   ],
   ucenik: [
-    ['pocetna','Početna','home'],
-    ['mojeocjene','Moje ocjene','star'],
-    ['mojeprisustvo','Prisustvo','student'],
-    ['mojiraspored','Raspored','cal'],
-    ['mojiispiti','Najave ispita','exam'],
-    ['mojipopravni','Popravni ispiti','exam'],
-    ['mojimaterijali','Materijali','doc'],
-    ['mojidomaci','Zadaće','homework'],
-    ['esveska','eSveska','note'],
-    ['poruke','Poruke','mail'],
-    ['postavke','Postavke','set'],
-    ['odjava','Odjava','out']
+    { items: [
+      ['pocetna','Početna','home'],
+      ['stream','Stream / Vijesti','mail'],
+      ['todo','To-do lista','homework']
+    ]},
+    { group: '📚 Nastava', items: [
+      ['mojiraspored','Raspored','cal'],
+      ['mojeocjene','Moje ocjene','star'],
+      ['mojeprisustvo','Prisustvo','student'],
+      ['mojimaterijali','Materijali','doc']
+    ]},
+    { group: '📝 Moji zadaci', items: [
+      ['mojidomaci','Zadaće','homework'],
+      ['mojikvizovi','Kvizovi','exam'],
+      ['mojiispiti','Najave ispita','exam'],
+      ['mojipopravni','Popravni','exam']
+    ]},
+    { group: '👤 Lično', items: [
+      ['esveska','eSveska','note'],
+      ['poruke','Poruke','mail'],
+      ['postavke','Postavke','set'],
+      ['odjava','Odjava','out']
+    ]}
   ]
 };
 function buildSidebar() {
-  document.getElementById('sidebarNav').innerHTML = MENU[currentUser.role].map(item=>{
-    const [k,n,i] = item;
-    return '<button onclick="navigate(\''+k+'\')" data-key="'+k+'" class="sidebar-item w-full flex items-center gap-3 px-5 py-3 text-gray-700 text-left">'+
-      '<span class="sidebar-icon flex-shrink-0">'+ICONS[i]+'</span><span>'+n+'</span></button>';
-  }).join('');
+  const groups = MENU[currentUser.role];
+  if (!groups || !groups.length) { document.getElementById('sidebarNav').innerHTML = ''; return; }
+  // Učitaj kollapsed grupe iz localStorage
+  const collapsed = JSON.parse(localStorage.getItem('edn_sidebar_collapsed_'+currentUser.role)||'{}');
+  
+  let html = '';
+  groups.forEach(function(group, gi){
+    if (group.group) {
+      const isCollapsed = collapsed[group.group];
+      html += '<div class="sidebar-group">'+
+        '<button onclick="toggleSidebarGroup(\''+escapeHtml(group.group).replace(/\x27/g,'%27')+'\')" class="sidebar-group-header w-full flex items-center justify-between px-5 py-2 text-xs font-bold text-gray-500 uppercase tracking-wider hover:bg-gray-50 transition">'+
+        '<span>'+escapeHtml(group.group)+'</span>'+
+        '<span class="text-base transition-transform '+(isCollapsed?'':'rotate-90')+'">›</span>'+
+        '</button>'+
+        '<div class="sidebar-group-items '+(isCollapsed?'hidden':'')+'">';
+      group.items.forEach(function(item){
+        const [k,n,i] = item;
+        html += '<button onclick="navigate(\''+k+'\')" data-key="'+k+'" class="sidebar-item w-full flex items-center gap-3 px-5 py-2.5 text-gray-700 text-left text-sm">'+
+          '<span class="sidebar-icon flex-shrink-0">'+ICONS[i]+'</span><span>'+n+'</span></button>';
+      });
+      html += '</div></div>';
+    } else if (group.items) {
+      // grupa bez naslova - glavni linkovi na vrhu
+      html += '<div class="sidebar-group sidebar-group-main">';
+      group.items.forEach(function(item){
+        const [k,n,i] = item;
+        html += '<button onclick="navigate(\''+k+'\')" data-key="'+k+'" class="sidebar-item sidebar-item-main w-full flex items-center gap-3 px-5 py-3 text-gray-800 text-left font-semibold">'+
+          '<span class="sidebar-icon flex-shrink-0">'+ICONS[i]+'</span><span>'+n+'</span></button>';
+      });
+      html += '</div><div class="border-b border-gray-200 my-1"></div>';
+    }
+  });
+  document.getElementById('sidebarNav').innerHTML = html;
+}
+
+function toggleSidebarGroup(groupName) {
+  groupName = decodeURIComponent(groupName);
+  const collapsed = JSON.parse(localStorage.getItem('edn_sidebar_collapsed_'+currentUser.role)||'{}');
+  collapsed[groupName] = !collapsed[groupName];
+  localStorage.setItem('edn_sidebar_collapsed_'+currentUser.role, JSON.stringify(collapsed));
+  buildSidebar();
 }
 function setActiveSidebar(k) {
   document.querySelectorAll('.sidebar-item').forEach(b => b.classList.toggle('active', b.dataset.key===k));
@@ -3124,6 +3208,889 @@ function dodajMat(razredId, predmet) {
   };
 }
 function obrisiMat(id) { if (confirm('Obrisati?')) { DB.materijali = DB.materijali.filter(m=>m.id!==id); saveData(); navigate('materijali'); } }
+
+// ============================================
+// ============= STREAM / VIJESTI =============
+// ============================================
+RENDERERS.stream = function(c, state) {
+  state = state || {};
+  if (!DB.stream) DB.stream = [];
+  
+  // Filtriraj objave za moj kontekst
+  let moje = DB.stream.slice();
+  if (currentUser.role === 'ucenik') {
+    const u = DB.ucenici.find(x=>x.id===currentUser.ucenikId);
+    if (u) moje = moje.filter(o=>!o.razredIds||!o.razredIds.length||o.razredIds.indexOf(u.razredId)>=0);
+    else moje = [];
+  } else if (currentUser.role === 'nastavnik') {
+    const moji = [...new Set((currentUser.zaduzenja||[]).reduce((s,z)=>s.concat(z.razrediIds||[]),[]))];
+    moje = moje.filter(o=>!o.razredIds||!o.razredIds.length||o.razredIds.some(rid=>moji.indexOf(rid)>=0)||o.autorId===currentUser.id);
+  }
+  // sort: pinned first, pa datum
+  moje.sort(function(a,b){
+    if (a.pinned && !b.pinned) return -1;
+    if (!a.pinned && b.pinned) return 1;
+    return (b.datum||'').localeCompare(a.datum||'');
+  });
+  
+  let html = '<div class="flex flex-wrap justify-between items-center gap-3 mb-4">'+
+    '<div><h2 class="text-3xl font-bold">📢 Stream / Vijesti</h2>'+
+    '<p class="text-gray-500 text-sm mt-1">Najnovije objave i obavještenja</p></div>'+
+    (currentUser.role!=='ucenik'?'<button onclick="novaStreamObjava()" class="btn-primary px-4 py-2 rounded-lg font-semibold flex items-center gap-2">✍ Nova objava</button>':'')+
+    '</div>';
+  
+  if (!moje.length) {
+    html += '<div class="empty-state"><div class="text-6xl mb-3">📢</div><p>Još nema objava u streamu.</p>'+
+      (currentUser.role!=='ucenik'?'<button onclick="novaStreamObjava()" class="btn-primary px-5 py-2 rounded-lg font-semibold mt-3">+ Prva objava</button>':'')+'</div>';
+  } else {
+    html += '<div class="space-y-3">' + moje.map(function(o){
+      const autor = DB.users.find(u=>u.id===o.autorId) || {name:'?'};
+      const ini = (autor.name.split(' ').map(s=>s[0]||'').join('').substring(0,2).toUpperCase());
+      const tipIcon = o.tip==='zadaca'?'📝':o.tip==='kviz'?'❓':o.tip==='materijal'?'📎':'📢';
+      const tipColor = o.tip==='zadaca'?'bg-yellow-100 text-yellow-800':o.tip==='kviz'?'bg-purple-100 text-purple-800':o.tip==='materijal'?'bg-green-100 text-green-800':'bg-blue-100 text-blue-800';
+      const tipNaziv = o.tip==='zadaca'?'ZADAĆA':o.tip==='kviz'?'KVIZ':o.tip==='materijal'?'MATERIJAL':'OBJAVA';
+      const ukReakcija = Object.values(o.reakcije||{}).reduce((s,a)=>s+(a?a.length:0),0);
+      const brKom = (o.komentari||[]).length;
+      const mojaReakcija = Object.keys(o.reakcije||{}).find(em=>(o.reakcije[em]||[]).indexOf(currentUser.id)>=0);
+      
+      return '<div class="bg-white border rounded-xl shadow-sm overflow-hidden '+(o.pinned?'border-2 border-yellow-400':'')+'">'+
+        // HEADER
+        '<div class="p-4 border-b bg-gradient-to-r from-blue-50 to-indigo-50">'+
+        '<div class="flex items-start gap-3">'+
+        '<div class="w-11 h-11 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-white font-bold flex items-center justify-center flex-shrink-0">'+ini+'</div>'+
+        '<div class="flex-1 min-w-0">'+
+        '<div class="flex flex-wrap items-center gap-2">'+
+        '<b class="text-gray-800">'+escapeHtml(autor.name)+'</b>'+
+        '<span class="badge '+tipColor+' text-[10px]">'+tipIcon+' '+tipNaziv+'</span>'+
+        (o.pinned?'<span class="badge bg-yellow-100 text-yellow-800 text-[10px]">📌 PIN</span>':'')+
+        '</div>'+
+        '<div class="text-xs text-gray-500 mt-0.5">'+fmtDateTime(o.datum)+
+        (o.razredIds&&o.razredIds.length?' • za: '+o.razredIds.map(rid=>getRazredName(rid)).join(', '):' • za sve')+
+        '</div></div>'+
+        // Menu (samo autor ili admin)
+        ((o.autorId===currentUser.id||currentUser.role==='admin')?'<div class="flex gap-1">'+
+          '<button onclick="togglePinStream('+o.id+')" class="hover:bg-gray-100 p-1.5 rounded" title="Pin">📌</button>'+
+          '<button onclick="urediStream('+o.id+')" class="hover:bg-gray-100 p-1.5 rounded" title="Uredi">✎</button>'+
+          '<button onclick="obrisiStream('+o.id+')" class="hover:bg-red-100 p-1.5 rounded text-red-600" title="Obriši">🗑</button>'+
+          '</div>':'')+
+        '</div></div>'+
+        // BODY - tekst
+        '<div class="p-4">'+
+        '<div class="text-gray-800 mb-2 whitespace-pre-wrap">'+parseMarkdown(o.tekst||'')+'</div>'+
+        // Prilozi
+        (o.prilozi&&o.prilozi.length ? '<div class="mt-3 space-y-1">'+
+          o.prilozi.map(function(pr){
+            if (pr.tip==='slika') return '<div class="bg-gray-50 rounded-lg p-2 cursor-pointer hover:bg-gray-100" onclick="prikaziSlikuModal(\''+pr.data+'\',\''+escapeHtml(pr.naziv).replace(/\x27/g,'%27')+'\')"><img src="'+pr.data+'" class="max-h-64 rounded" alt="'+escapeHtml(pr.naziv)+'"></div>';
+            if (pr.tip==='link') return '<a href="'+pr.url+'" target="_blank" class="block bg-gray-50 hover:bg-blue-50 rounded p-2 text-blue-700 hover:underline">🔗 '+escapeHtml(pr.naziv)+'</a>';
+            return '<a href="'+(pr.data||pr.url||'#')+'" download="'+escapeHtml(pr.naziv)+'" class="block bg-gray-50 hover:bg-blue-50 rounded p-2 text-blue-700 hover:underline">📎 '+escapeHtml(pr.naziv)+'</a>';
+          }).join('')+'</div>' : '')+
+        // Reakcije
+        '<div class="flex flex-wrap items-center gap-2 mt-3 pt-2 border-t">'+
+        '<div class="flex gap-1">'+
+        ['👍','❤️','🎉','👏','😂'].map(em=>{
+          const ima = (o.reakcije&&o.reakcije[em])||[];
+          const moja = ima.indexOf(currentUser.id)>=0;
+          return '<button onclick="toggleStreamReakcija('+o.id+',\''+em+'\')" class="text-xs px-2 py-1 rounded-full border '+(moja?'bg-blue-100 border-blue-400 font-semibold':'bg-white border-gray-300 hover:bg-gray-50')+'">'+em+(ima.length?' '+ima.length:'')+'</button>';
+        }).join('')+
+        '</div>'+
+        '<button onclick="toggleStreamKomentari('+o.id+')" class="ml-auto text-xs text-blue-600 hover:underline">💬 '+brKom+' '+(brKom===1?'komentar':'komentara')+'</button>'+
+        '</div>'+
+        // Komentari (collapsed by default)
+        '<div id="strKom'+o.id+'" class="hidden mt-3 pt-3 border-t space-y-2">'+
+        ((o.komentari||[]).map(function(k){
+          const ka = DB.users.find(u=>u.id===k.odId) || {name:'?'};
+          const kIni = (ka.name.split(' ').map(s=>s[0]||'').join('').substring(0,2).toUpperCase());
+          return '<div class="flex gap-2 items-start">'+
+            '<div class="w-7 h-7 rounded-full bg-gradient-to-br from-gray-400 to-gray-600 text-white font-bold flex items-center justify-center text-xs flex-shrink-0">'+kIni+'</div>'+
+            '<div class="flex-1 bg-gray-50 rounded-lg p-2 text-sm"><b class="text-xs">'+escapeHtml(ka.name)+'</b> <span class="text-xs text-gray-500">'+fmtTimeShort(k.datum)+'</span>'+
+            '<div>'+escapeHtml(k.tekst)+'</div></div>'+
+            ((k.odId===currentUser.id||currentUser.role==='admin')?'<button onclick="obrisiStreamKomentar('+o.id+','+k.id+')" class="text-red-500 hover:bg-red-50 w-6 h-6 rounded text-xs">×</button>':'')+
+            '</div>';
+        }).join(''))+
+        '<form onsubmit="event.preventDefault();dodajStreamKomentar('+o.id+')" class="flex gap-2">'+
+        '<input id="strKomInp'+o.id+'" placeholder="Dodaj komentar..." class="flex-1 px-3 py-2 border rounded-lg text-sm">'+
+        '<button type="submit" class="btn-primary px-3 py-2 rounded-lg text-sm">Pošalji</button>'+
+        '</form>'+
+        '</div>'+
+        '</div>'+
+        '</div>';
+    }).join('') + '</div>';
+  }
+  c.innerHTML = html;
+};
+
+function toggleStreamKomentari(id) {
+  const el = document.getElementById('strKom'+id);
+  if (el) el.classList.toggle('hidden');
+}
+
+function toggleStreamReakcija(id, emoji) {
+  const o = DB.stream.find(x=>x.id===id);
+  if (!o) return;
+  o.reakcije = o.reakcije || {};
+  o.reakcije[emoji] = o.reakcije[emoji] || [];
+  const ix = o.reakcije[emoji].indexOf(currentUser.id);
+  if (ix>=0) o.reakcije[emoji].splice(ix,1);
+  else o.reakcije[emoji].push(currentUser.id);
+  if (!o.reakcije[emoji].length) delete o.reakcije[emoji];
+  saveData(); navigate('stream');
+}
+
+function dodajStreamKomentar(id) {
+  const inp = document.getElementById('strKomInp'+id);
+  const tekst = inp.value.trim();
+  if (!tekst) return;
+  const o = DB.stream.find(x=>x.id===id);
+  if (!o) return;
+  o.komentari = o.komentari || [];
+  o.komentari.push({ id:Date.now(), odId:currentUser.id, tekst:tekst, datum:new Date().toISOString() });
+  // obavijesti autora
+  if (o.autorId !== currentUser.id) {
+    DB.obavijesti.push({ id:Date.now()+Math.random(), naslov:'💬 Komentar na vašu objavu', tekst:currentUser.name+': '+tekst.substring(0,80), datum:todayISO(), za:null, zaId:o.autorId });
+  }
+  saveData(); navigate('stream');
+  setTimeout(()=>{ const el=document.getElementById('strKom'+id); if (el) el.classList.remove('hidden'); }, 100);
+}
+
+function obrisiStreamKomentar(streamId, komId) {
+  if (!confirm('Obrisati komentar?')) return;
+  const o = DB.stream.find(x=>x.id===streamId);
+  if (!o) return;
+  o.komentari = (o.komentari||[]).filter(k=>k.id!==komId);
+  saveData(); navigate('stream');
+}
+
+function togglePinStream(id) {
+  const o = DB.stream.find(x=>x.id===id);
+  if (!o) return;
+  o.pinned = !o.pinned;
+  saveData(); navigate('stream');
+}
+
+function obrisiStream(id) {
+  if (!confirm('🗑 Obrisati objavu?')) return;
+  DB.stream = DB.stream.filter(o=>o.id!==id);
+  saveData(); navigate('stream');
+}
+
+function novaStreamObjava(editId) {
+  const ex = editId ? DB.stream.find(o=>o.id===editId) : null;
+  const mojiRazredi = currentUser.role==='admin' ? DB.razredi : 
+    DB.razredi.filter(r=>{
+      const moji = (currentUser.zaduzenja||[]).reduce((s,z)=>s.concat(z.razrediIds||[]),[]);
+      return moji.indexOf(r.id)>=0;
+    });
+  
+  showModal('<h3 class="text-xl font-bold mb-3">'+(editId?'✎ Uredi objavu':'✍ Nova objava')+'</h3>'+
+    '<form id="strf" class="space-y-3">'+
+    '<div><label class="text-sm font-medium block mb-1">Tip objave</label>'+
+    '<select name="tip" class="w-full px-3 py-2 border rounded-lg">'+
+    [['objava','📢 Obavještenje'],['materijal','📎 Materijal'],['zadaca','📝 Najava zadaće'],['kviz','❓ Najava kviza']].map(t=>'<option value="'+t[0]+'"'+(ex&&ex.tip===t[0]?' selected':'')+'>'+t[1]+'</option>').join('')+
+    '</select></div>'+
+    
+    '<div><label class="text-sm font-medium block mb-1">Tekst objave *</label>'+
+    renderFmtBar('strTekst')+
+    '<textarea id="strTekst" name="tekst" required class="w-full px-3 py-2 border rounded-lg" style="min-height:120px" placeholder="Šta želite objaviti... (možete koristiti **bold**, *italic*, liste, citate...)">'+escapeHtml(ex?ex.tekst:'')+'</textarea>'+
+    '</div>'+
+    
+    '<div><label class="text-sm font-medium block mb-1">Za koje razrede?</label>'+
+    '<div class="bg-gray-50 border rounded-lg p-2 max-h-40 overflow-y-auto">'+
+    '<label class="flex items-center gap-2 p-2 hover:bg-white cursor-pointer rounded text-sm font-semibold">'+
+    '<input type="checkbox" name="raz_svi" '+(!ex||!ex.razredIds||!ex.razredIds.length?'checked':'')+' onchange="streamToggleSvi(this)" class="w-4 h-4">'+
+    '<span>🌐 Sve razrede</span></label>'+
+    '<div id="strRazList" class="ml-4 mt-1 '+(!ex||!ex.razredIds||!ex.razredIds.length?'hidden':'')+'">'+
+    mojiRazredi.map(r=>'<label class="flex items-center gap-2 p-1 hover:bg-white cursor-pointer rounded text-sm"><input type="checkbox" class="strRazCb w-4 h-4" value="'+r.id+'" '+(ex&&ex.razredIds&&ex.razredIds.indexOf(r.id)>=0?'checked':'')+'><span>'+r.naziv+'</span></label>').join('')+
+    '</div></div></div>'+
+    
+    // Prilozi - slika ili link
+    '<div><label class="text-sm font-medium block mb-1">Prilozi (opcionalno)</label>'+
+    '<div id="streamPrilozi" class="space-y-1 mb-2">'+
+    (ex&&ex.prilozi?ex.prilozi.map((pr,i)=>'<div class="bg-gray-50 border rounded p-2 flex justify-between items-center text-sm" data-pr=\''+JSON.stringify(pr).replace(/\x27/g,'&apos;')+'\'><span>'+(pr.tip==='slika'?'🖼':pr.tip==='link'?'🔗':'📎')+' '+escapeHtml(pr.naziv)+'</span><button type="button" onclick="this.parentElement.remove()" class="text-red-500 hover:bg-red-50 w-6 h-6 rounded">×</button></div>').join(''):'')+
+    '</div>'+
+    '<div class="flex gap-2 flex-wrap">'+
+    '<label class="btn-secondary px-3 py-1.5 rounded-lg text-sm cursor-pointer">'+
+    '<input type="file" accept="image/*" onchange="uploadStreamSlika(this)" class="hidden">📷 Slika</label>'+
+    '<button type="button" onclick="dodajStreamLink()" class="btn-secondary px-3 py-1.5 rounded-lg text-sm">🔗 Link</button>'+
+    '</div></div>'+
+    
+    '<label class="flex items-center gap-2 p-2 bg-yellow-50 border border-yellow-200 rounded cursor-pointer">'+
+    '<input type="checkbox" name="pinned" '+(ex&&ex.pinned?'checked':'')+' class="w-4 h-4">'+
+    '<span class="text-sm">📌 Pin na vrh streama</span></label>'+
+    
+    '<div class="flex justify-end gap-2 pt-3 border-t">'+
+    '<button type="button" onclick="closeModal()" class="btn-secondary px-4 py-2 rounded-lg">Otkaži</button>'+
+    '<button type="submit" class="btn-primary px-4 py-2 rounded-lg font-semibold">'+(editId?'Sačuvaj':'Objavi')+'</button>'+
+    '</div></form>');
+  
+  setupMessageTextarea(document.getElementById('strTekst'), document.getElementById('strf'));
+  
+  document.getElementById('strf').onsubmit = function(e){
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const sviRaz = fd.get('raz_svi')==='on';
+    const razrediIds = sviRaz ? [] : [].slice.call(document.querySelectorAll('.strRazCb:checked')).map(c=>+c.value);
+    if (!sviRaz && !razrediIds.length) { showNotification('Odaberite barem jedan razred ili "Sve"','error'); return; }
+    // priložke iz DOM-a
+    const prilozi = [].slice.call(document.querySelectorAll('#streamPrilozi > div')).map(div=>{
+      try { return JSON.parse(div.dataset.pr.replace(/&apos;/g,"'")); } catch(e){ return null; }
+    }).filter(Boolean);
+    
+    const data = {
+      tip: fd.get('tip'),
+      tekst: fd.get('tekst'),
+      razredIds: razrediIds,
+      prilozi: prilozi,
+      pinned: fd.get('pinned')==='on'
+    };
+    if (editId) {
+      Object.assign(ex, data);
+      ex.izmijenjeno = new Date().toISOString();
+    } else {
+      DB.stream.push(Object.assign({
+        id: Date.now(),
+        autorId: currentUser.id,
+        datum: new Date().toISOString(),
+        komentari: [],
+        reakcije: {}
+      }, data));
+    }
+    // obavijesti učenike u tim razredima
+    const ciljaniIds = razrediIds.length ? razrediIds : DB.razredi.map(r=>r.id);
+    DB.ucenici.filter(u=>ciljaniIds.indexOf(u.razredId)>=0).forEach(function(uc){
+      const usr = DB.users.find(x=>x.ucenikId===uc.id);
+      if (usr && usr.id!==currentUser.id) {
+        DB.obavijesti.push({ id:Date.now()+Math.random(), naslov:'📢 Nova objava ('+data.tip+')', tekst:currentUser.name+': '+stripMarkdown(data.tekst).substring(0,80), datum:todayISO(), za:null, zaId:usr.id });
+      }
+    });
+    saveData(); closeModal(); navigate('stream'); showNotification(editId?'✓ Objava izmijenjena':'✓ Objavljeno!');
+  };
+}
+
+function urediStream(id) { novaStreamObjava(id); }
+
+function streamToggleSvi(cb) {
+  document.getElementById('strRazList').classList.toggle('hidden', cb.checked);
+  if (cb.checked) document.querySelectorAll('.strRazCb').forEach(c=>c.checked=false);
+}
+
+function uploadStreamSlika(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 1024*1024) { showNotification('Slika prevelika (max 1MB)','error'); return; }
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const div = document.createElement('div');
+    div.className = 'bg-gray-50 border rounded p-2 flex justify-between items-center text-sm';
+    const data = { tip:'slika', naziv:file.name, data:e.target.result };
+    div.dataset.pr = JSON.stringify(data).replace(/'/g,'&apos;');
+    div.innerHTML = '<span>🖼 '+escapeHtml(file.name)+'</span><button type="button" onclick="this.parentElement.remove()" class="text-red-500 hover:bg-red-50 w-6 h-6 rounded">×</button>';
+    document.getElementById('streamPrilozi').appendChild(div);
+  };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+
+function dodajStreamLink() {
+  const url = prompt('URL link:', 'https://');
+  if (!url) return;
+  const naziv = prompt('Naslov (opcionalno):', url) || url;
+  const div = document.createElement('div');
+  div.className = 'bg-gray-50 border rounded p-2 flex justify-between items-center text-sm';
+  const data = { tip:'link', naziv:naziv, url:url };
+  div.dataset.pr = JSON.stringify(data).replace(/'/g,'&apos;');
+  div.innerHTML = '<span>🔗 '+escapeHtml(naziv)+'</span><button type="button" onclick="this.parentElement.remove()" class="text-red-500 hover:bg-red-50 w-6 h-6 rounded">×</button>';
+  document.getElementById('streamPrilozi').appendChild(div);
+}
+
+function prikaziSlikuModal(src, naziv) {
+  showModal('<h3 class="text-lg font-bold mb-3">'+escapeHtml(naziv)+'</h3>'+
+    '<img src="'+src+'" class="max-w-full rounded-lg">'+
+    '<div class="flex justify-end gap-2 mt-3 pt-3 border-t">'+
+    '<a href="'+src+'" download="'+escapeHtml(naziv)+'" class="btn-primary px-4 py-2 rounded-lg">⬇ Preuzmi</a>'+
+    '<button onclick="closeModal()" class="btn-secondary px-4 py-2 rounded-lg">Zatvori</button></div>');
+}
+
+// ============================================
+// ============= KVIZOVI =============
+// ============================================
+RENDERERS.kvizovi = function(c, state) {
+  state = state || {};
+  if (!DB.kvizovi) DB.kvizovi = [];
+  if (state.kvizId) return renderKvizDetalji(c, state.kvizId);
+  
+  let list = DB.kvizovi.filter(k=>k.nastavnikId===currentUser.id);
+  list.sort((a,b)=>(b.datumOd||'').localeCompare(a.datumOd||''));
+  
+  let html = '<div class="flex flex-wrap justify-between items-center gap-3 mb-4">'+
+    '<div><h2 class="text-3xl font-bold">❓ Kvizovi</h2>'+
+    '<p class="text-gray-500 text-sm mt-1">'+list.length+' kvizova</p></div>'+
+    '<button onclick="noviKviz()" class="btn-primary px-4 py-2 rounded-lg font-semibold">+ Novi kviz</button>'+
+    '</div>';
+  
+  if (!list.length) {
+    html += '<div class="empty-state"><div class="text-6xl mb-3">❓</div><p>Nemate još kvizova.</p><button onclick="noviKviz()" class="btn-primary px-5 py-2 rounded-lg font-semibold mt-3">+ Kreiraj prvi kviz</button></div>';
+  } else {
+    html += '<div class="grid md:grid-cols-2 gap-4">'+
+      list.map(function(k){
+        const pokusaja = (DB.kvizPokusaji||[]).filter(p=>p.kvizId===k.id).length;
+        const ukUcenika = DB.ucenici.filter(u=>u.razredId===k.razredId).length;
+        const aktivan = k.datumDo>=todayISO() && k.datumOd<=todayISO();
+        const buduci = k.datumOd>todayISO();
+        return '<div class="bg-white border-2 '+(aktivan?'border-green-400':buduci?'border-blue-300':'border-gray-300')+' rounded-xl p-4 hover:shadow-md transition cursor-pointer" onclick="navigate(\'kvizovi\',{kvizId:'+k.id+'})">'+
+          '<div class="flex justify-between items-start mb-2">'+
+          '<h3 class="font-bold text-lg">'+escapeHtml(k.naslov)+'</h3>'+
+          (aktivan?'<span class="badge bg-green-100 text-green-700 font-bold">✓ AKTIVAN</span>':buduci?'<span class="badge bg-blue-100 text-blue-700">📅 BUDUĆI</span>':'<span class="badge bg-gray-100 text-gray-700">⏱ ZAVRŠEN</span>')+
+          '</div>'+
+          '<p class="text-sm text-gray-600">'+escapeHtml(k.predmet)+' • '+getRazredName(k.razredId)+'</p>'+
+          (k.opis?'<p class="text-xs text-gray-500 mt-1 line-clamp-2">'+escapeHtml(k.opis)+'</p>':'')+
+          '<div class="grid grid-cols-3 gap-2 mt-3 text-center">'+
+          '<div class="bg-blue-50 p-2 rounded"><div class="font-bold text-blue-700">'+(k.pitanja||[]).length+'</div><div class="text-xs text-gray-600">Pitanja</div></div>'+
+          '<div class="bg-green-50 p-2 rounded"><div class="font-bold text-green-700">'+pokusaja+'/'+ukUcenika+'</div><div class="text-xs text-gray-600">Riješilo</div></div>'+
+          '<div class="bg-purple-50 p-2 rounded"><div class="font-bold text-purple-700">'+(k.bodova||0)+'</div><div class="text-xs text-gray-600">Bodova</div></div>'+
+          '</div>'+
+          '<div class="text-xs text-gray-500 mt-2 pt-2 border-t">📅 '+fmtDate(k.datumOd)+' - '+fmtDate(k.datumDo)+'</div>'+
+          '</div>';
+      }).join('')+
+      '</div>';
+  }
+  c.innerHTML = html;
+};
+
+function noviKviz() {
+  const dostupniPredmeti = (currentUser.zaduzenja||[]).map(z=>z.predmet);
+  if (!dostupniPredmeti.length) DB.predmeti.forEach(p=>dostupniPredmeti.push(p));
+  const sutra = new Date(); sutra.setDate(sutra.getDate()+7);
+  showModal('<h3 class="text-xl font-bold mb-3">❓ Novi kviz</h3>'+
+    '<form id="kvf" class="space-y-3">'+
+    '<div><label class="text-sm font-medium block mb-1">Naslov *</label>'+
+    '<input name="naslov" required class="w-full px-3 py-2 border rounded-lg" placeholder="npr. Kviz - Razlomci"></div>'+
+    '<div class="grid grid-cols-2 gap-3">'+
+    '<div><label class="text-sm font-medium block mb-1">Predmet</label>'+
+    '<select name="predmet" class="w-full px-3 py-2 border rounded-lg">'+dostupniPredmeti.map(p=>'<option>'+p+'</option>').join('')+'</select></div>'+
+    '<div><label class="text-sm font-medium block mb-1">Razred</label>'+
+    '<select name="razredId" class="w-full px-3 py-2 border rounded-lg">'+DB.razredi.map(r=>'<option value="'+r.id+'">'+r.naziv+'</option>').join('')+'</select></div>'+
+    '</div>'+
+    '<div><label class="text-sm font-medium block mb-1">Opis</label>'+
+    '<textarea name="opis" class="w-full px-3 py-2 border rounded-lg h-20" placeholder="Šta će se ispitivati..."></textarea></div>'+
+    '<div class="grid grid-cols-2 gap-3">'+
+    '<div><label class="text-sm font-medium block mb-1">Dostupan od</label>'+
+    '<input name="datumOd" type="date" value="'+todayISO()+'" required class="w-full px-3 py-2 border rounded-lg"></div>'+
+    '<div><label class="text-sm font-medium block mb-1">Dostupan do</label>'+
+    '<input name="datumDo" type="date" value="'+sutra.toISOString().split('T')[0]+'" required class="w-full px-3 py-2 border rounded-lg"></div>'+
+    '</div>'+
+    '<label class="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded cursor-pointer">'+
+    '<input type="checkbox" name="ocjenjivati" checked class="w-4 h-4">'+
+    '<span class="text-sm">📊 Ocijeniti automatski (ocjena u dnevnik)</span></label>'+
+    '<div class="flex justify-end gap-2 pt-3 border-t">'+
+    '<button type="button" onclick="closeModal()" class="btn-secondary px-4 py-2 rounded-lg">Otkaži</button>'+
+    '<button type="submit" class="btn-primary px-4 py-2 rounded-lg">Kreiraj i dodaj pitanja</button>'+
+    '</div></form>');
+  document.getElementById('kvf').onsubmit = function(e){
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const kv = {
+      id: Date.now(),
+      nastavnikId: currentUser.id,
+      naslov: fd.get('naslov'),
+      predmet: fd.get('predmet'),
+      razredId: +fd.get('razredId'),
+      opis: fd.get('opis'),
+      datumOd: fd.get('datumOd'),
+      datumDo: fd.get('datumDo'),
+      ocjenjivati: fd.get('ocjenjivati')==='on',
+      pitanja: [],
+      bodova: 0
+    };
+    DB.kvizovi.push(kv);
+    saveData(); closeModal(); navigate('kvizovi',{kvizId:kv.id});
+  };
+}
+
+function renderKvizDetalji(c, kvizId) {
+  const kv = DB.kvizovi.find(k=>k.id===kvizId);
+  if (!kv) { navigate('kvizovi'); return; }
+  const pokusaji = (DB.kvizPokusaji||[]).filter(p=>p.kvizId===kvizId);
+  const ucenici = DB.ucenici.filter(u=>u.razredId===kv.razredId);
+  
+  let html = '<button onclick="navigate(\'kvizovi\')" class="btn-secondary px-3 py-2 rounded-lg mb-3 text-sm">← Svi kvizovi</button>'+
+    '<div class="bg-gradient-to-r from-purple-600 to-purple-800 text-white rounded-2xl p-5 mb-4">'+
+    '<div class="flex justify-between items-start flex-wrap gap-3">'+
+    '<div><h2 class="text-2xl font-bold">'+escapeHtml(kv.naslov)+'</h2>'+
+    '<p class="text-purple-100 mt-1">'+escapeHtml(kv.predmet)+' • '+getRazredName(kv.razredId)+' • '+fmtDate(kv.datumOd)+' - '+fmtDate(kv.datumDo)+'</p>'+
+    (kv.opis?'<p class="text-sm mt-2 opacity-90">'+escapeHtml(kv.opis)+'</p>':'')+
+    '</div>'+
+    '<div class="flex gap-2"><button onclick="dodajPitanjeKviz('+kvizId+')" class="bg-white text-purple-700 hover:bg-purple-50 px-4 py-2 rounded-lg font-bold">+ Pitanje</button>'+
+    '<button onclick="obrisiKviz('+kvizId+')" class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg">🗑</button></div>'+
+    '</div></div>'+
+    
+    // STATISTIKA
+    '<div class="grid grid-cols-3 gap-3 mb-4">'+
+    '<div class="bg-white border rounded-xl p-3 text-center"><div class="text-2xl font-bold text-blue-700">'+(kv.pitanja||[]).length+'</div><div class="text-xs text-gray-600">Pitanja</div></div>'+
+    '<div class="bg-white border rounded-xl p-3 text-center"><div class="text-2xl font-bold text-green-700">'+pokusaji.length+' / '+ucenici.length+'</div><div class="text-xs text-gray-600">Riješilo</div></div>'+
+    '<div class="bg-white border rounded-xl p-3 text-center"><div class="text-2xl font-bold text-purple-700">'+(kv.bodova||0)+'</div><div class="text-xs text-gray-600">Max bodova</div></div>'+
+    '</div>'+
+    
+    // PITANJA
+    '<h3 class="font-bold text-lg mb-2">📝 Pitanja</h3>'+
+    '<div class="space-y-2 mb-6">';
+  if (!(kv.pitanja||[]).length) {
+    html += '<div class="empty-state bg-white border rounded-xl">Nema pitanja. Klikni "+ Pitanje" za dodavanje.</div>';
+  } else {
+    kv.pitanja.forEach(function(p, i){
+      html += '<div class="bg-white border rounded-xl p-3">'+
+        '<div class="flex justify-between items-start mb-2">'+
+        '<div class="flex-1"><b>'+(i+1)+'. '+escapeHtml(p.tekst)+'</b>'+
+        ' <span class="text-xs text-gray-500">('+p.bodova+'b • '+(p.tip==='choice'?'jedan tačan':p.tip==='multi'?'više tačnih':p.tip==='trueFalse'?'tačno/netačno':'tekstualni odgovor')+')</span></div>'+
+        '<div class="flex gap-1"><button onclick="urediPitanjeKviz('+kvizId+','+p.id+')" class="text-blue-600 hover:bg-blue-50 px-2 py-1 rounded text-sm">✎</button>'+
+        '<button onclick="obrisiPitanjeKviz('+kvizId+','+p.id+')" class="text-red-600 hover:bg-red-50 px-2 py-1 rounded text-sm">🗑</button></div>'+
+        '</div>'+
+        (p.opcije && p.opcije.length ? '<ul class="text-sm text-gray-700 ml-4">'+
+          p.opcije.map((opt,oi)=>'<li>'+((p.tacni||[]).indexOf(oi)>=0?'<b class="text-green-700">✓ ':'<span class="text-gray-400">○ ')+escapeHtml(opt)+'</'+((p.tacni||[]).indexOf(oi)>=0?'b':'span')+'></li>').join('')+
+          '</ul>' : '')+
+        '</div>';
+    });
+  }
+  html += '</div>';
+  
+  // REZULTATI
+  if (pokusaji.length) {
+    html += '<h3 class="font-bold text-lg mb-2">📊 Rezultati</h3>'+
+      '<div class="bg-white border rounded-xl overflow-hidden"><table><thead><tr>'+
+      '<th style="text-align:left">Učenik</th><th>Datum</th><th>Bodova</th><th>%</th><th>Ocjena</th>'+
+      '</tr></thead><tbody>';
+    ucenici.forEach(function(u){
+      const p = pokusaji.find(x=>x.ucenikId===u.id);
+      if (!p) {
+        html += '<tr class="opacity-50"><td style="text-align:left;padding-left:16px">'+escapeHtml(u.prezime+' '+u.ime)+'</td><td colspan="4" class="text-center text-gray-400">nije riješio</td></tr>';
+      } else {
+        const pct = kv.bodova ? Math.round(p.bodova/kv.bodova*100) : 0;
+        html += '<tr><td style="text-align:left;padding-left:16px"><b>'+escapeHtml(u.prezime+' '+u.ime)+'</b></td>'+
+          '<td class="text-xs">'+fmtDateTime(p.datumPokusaja)+'</td>'+
+          '<td><b>'+p.bodova+'/'+kv.bodova+'</b></td>'+
+          '<td><b class="'+(pct>=80?'text-green-700':pct>=60?'text-blue-700':pct>=40?'text-yellow-700':'text-red-700')+'">'+pct+'%</b></td>'+
+          '<td>'+(p.ocjena?'<span class="ocjena-chip ocjena-'+p.ocjena+'" style="cursor:default">'+p.ocjena+'</span>':'-')+'</td>'+
+          '</tr>';
+      }
+    });
+    html += '</tbody></table></div>';
+  }
+  c.innerHTML = html;
+}
+
+function dodajPitanjeKviz(kvizId, edit) {
+  const kv = DB.kvizovi.find(k=>k.id===kvizId);
+  if (!kv) return;
+  const ex = edit ? (kv.pitanja||[]).find(p=>p.id===edit) : { tip:'choice', tekst:'', opcije:['',''], tacni:[], bodova:1 };
+  
+  showModal('<h3 class="text-xl font-bold mb-3">'+(edit?'✎ Uredi':'+ Novo')+' pitanje</h3>'+
+    '<form id="pitf" class="space-y-3">'+
+    '<div><label class="text-sm font-medium block mb-1">Tip pitanja</label>'+
+    '<select name="tip" id="pitTip" onchange="azurirajPitanjeForm()" class="w-full px-3 py-2 border rounded-lg">'+
+    '<option value="choice"'+(ex.tip==='choice'?' selected':'')+'>○ Jedan tačan odgovor</option>'+
+    '<option value="multi"'+(ex.tip==='multi'?' selected':'')+'>☑ Više tačnih odgovora</option>'+
+    '<option value="trueFalse"'+(ex.tip==='trueFalse'?' selected':'')+'>✓ Tačno / Netačno</option>'+
+    '<option value="text"'+(ex.tip==='text'?' selected':'')+'>📝 Kratak tekstualni odgovor</option>'+
+    '</select></div>'+
+    '<div><label class="text-sm font-medium block mb-1">Pitanje *</label>'+
+    '<textarea name="tekst" required class="w-full px-3 py-2 border rounded-lg h-20" placeholder="Šta je glavni grad BiH?">'+escapeHtml(ex.tekst||'')+'</textarea></div>'+
+    '<div id="pitOpcijeBox"></div>'+
+    '<div><label class="text-sm font-medium block mb-1">Bodova</label>'+
+    '<input name="bodova" type="number" min="1" value="'+(ex.bodova||1)+'" required class="w-full px-3 py-2 border rounded-lg"></div>'+
+    '<div class="flex justify-end gap-2 pt-3 border-t">'+
+    '<button type="button" onclick="closeModal()" class="btn-secondary px-4 py-2 rounded-lg">Otkaži</button>'+
+    '<button type="submit" class="btn-primary px-4 py-2 rounded-lg">Sačuvaj</button>'+
+    '</div></form>');
+  window._editPitanje = ex;
+  azurirajPitanjeForm();
+  
+  document.getElementById('pitf').onsubmit = function(e){
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const tip = fd.get('tip');
+    const data = { tekst: fd.get('tekst'), tip: tip, bodova: +fd.get('bodova') };
+    if (tip==='choice' || tip==='multi') {
+      data.opcije = [].slice.call(document.querySelectorAll('.pitOpcija')).map(i=>i.value).filter(Boolean);
+      data.tacni = [].slice.call(document.querySelectorAll('.pitTacan:checked')).map(c=>+c.value);
+      if (!data.opcije.length || !data.tacni.length) { showNotification('Dodaj opcije i označi tačne','error'); return; }
+    } else if (tip==='trueFalse') {
+      data.opcije = ['Tačno','Netačno'];
+      data.tacni = [+(fd.get('tacniTF')==='T'?0:1)];
+    } else {
+      data.tacni = [fd.get('tacniText')||''];
+      data.opcije = [];
+    }
+    if (edit) Object.assign(ex, data);
+    else { data.id = Date.now(); kv.pitanja = kv.pitanja||[]; kv.pitanja.push(data); }
+    kv.bodova = (kv.pitanja||[]).reduce((s,p)=>s+(p.bodova||0),0);
+    saveData(); closeModal(); navigate('kvizovi',{kvizId:kvizId});
+  };
+}
+
+function azurirajPitanjeForm() {
+  const tip = document.getElementById('pitTip').value;
+  const ex = window._editPitanje || {};
+  const box = document.getElementById('pitOpcijeBox');
+  if (tip==='choice' || tip==='multi') {
+    const opcije = ex.opcije && ex.opcije.length ? ex.opcije : ['',''];
+    box.innerHTML = '<label class="text-sm font-medium block mb-2">Opcije ('+(tip==='choice'?'jedan tačan':'više tačnih')+')</label>'+
+      '<div id="pitOpcijeList" class="space-y-1 mb-2">'+
+      opcije.map((o,i)=>'<div class="flex gap-2 items-center"><input type="'+(tip==='choice'?'radio':'checkbox')+'" name="pitTacanRadio" value="'+i+'" class="pitTacan w-4 h-4" '+((ex.tacni||[]).indexOf(i)>=0?'checked':'')+'>'+
+        '<input class="pitOpcija flex-1 px-3 py-2 border rounded-lg" placeholder="Opcija '+(i+1)+'" value="'+escapeHtml(o)+'">'+
+        '<button type="button" onclick="this.parentElement.remove()" class="text-red-500 hover:bg-red-50 w-7 h-7 rounded">×</button></div>').join('')+
+      '</div>'+
+      '<button type="button" onclick="dodajPitanjeOpciju()" class="text-blue-600 hover:underline text-sm">+ Dodaj opciju</button>';
+  } else if (tip==='trueFalse') {
+    box.innerHTML = '<label class="text-sm font-medium block mb-2">Tačan odgovor</label>'+
+      '<div class="flex gap-3"><label class="flex items-center gap-2 p-3 bg-white border-2 rounded-lg cursor-pointer flex-1 hover:border-green-500"><input type="radio" name="tacniTF" value="T" '+(!ex.tacni||ex.tacni[0]===0?'checked':'')+' class="w-4 h-4"><b class="text-green-700">✓ TAČNO</b></label>'+
+      '<label class="flex items-center gap-2 p-3 bg-white border-2 rounded-lg cursor-pointer flex-1 hover:border-red-500"><input type="radio" name="tacniTF" value="N" '+(ex.tacni&&ex.tacni[0]===1?'checked':'')+' class="w-4 h-4"><b class="text-red-700">✗ NETAČNO</b></label></div>';
+  } else {
+    box.innerHTML = '<label class="text-sm font-medium block mb-1">Tačan odgovor (učenik mora unijeti tačno)</label>'+
+      '<input name="tacniText" class="w-full px-3 py-2 border rounded-lg" placeholder="Tačan odgovor..." value="'+escapeHtml((ex.tacni&&ex.tacni[0])||'')+'">'+
+      '<p class="text-xs text-gray-500 mt-1">💡 Provjera nije case-sensitive</p>';
+  }
+}
+
+function dodajPitanjeOpciju() {
+  const list = document.getElementById('pitOpcijeList');
+  const i = list.children.length;
+  const tip = document.getElementById('pitTip').value;
+  const div = document.createElement('div');
+  div.className = 'flex gap-2 items-center';
+  div.innerHTML = '<input type="'+(tip==='choice'?'radio':'checkbox')+'" name="pitTacanRadio" value="'+i+'" class="pitTacan w-4 h-4">'+
+    '<input class="pitOpcija flex-1 px-3 py-2 border rounded-lg" placeholder="Opcija '+(i+1)+'">'+
+    '<button type="button" onclick="this.parentElement.remove()" class="text-red-500 hover:bg-red-50 w-7 h-7 rounded">×</button>';
+  list.appendChild(div);
+}
+
+function urediPitanjeKviz(kvizId, pid) { dodajPitanjeKviz(kvizId, pid); }
+
+function obrisiPitanjeKviz(kvizId, pid) {
+  if (!confirm('Obrisati pitanje?')) return;
+  const kv = DB.kvizovi.find(k=>k.id===kvizId);
+  kv.pitanja = (kv.pitanja||[]).filter(p=>p.id!==pid);
+  kv.bodova = kv.pitanja.reduce((s,p)=>s+(p.bodova||0),0);
+  saveData(); navigate('kvizovi',{kvizId:kvizId});
+}
+
+function obrisiKviz(kvizId) {
+  if (!confirm('🗑 Obrisati kviz i sve rezultate?')) return;
+  DB.kvizovi = DB.kvizovi.filter(k=>k.id!==kvizId);
+  DB.kvizPokusaji = (DB.kvizPokusaji||[]).filter(p=>p.kvizId!==kvizId);
+  saveData(); navigate('kvizovi');
+}
+
+// =========== UČENIK: KVIZOVI ===========
+RENDERERS.mojikvizovi = function(c, state) {
+  state = state || {};
+  if (state.kvizId) return renderKvizRjesavanje(c, state.kvizId);
+  
+  const u = DB.ucenici.find(x=>x.id===currentUser.ucenikId);
+  if (!u) { c.innerHTML='<div class="empty-state">Nema učenika</div>'; return; }
+  
+  const danas = todayISO();
+  const aktivni = (DB.kvizovi||[]).filter(k=>k.razredId===u.razredId && k.datumOd<=danas && k.datumDo>=danas);
+  const buduci = (DB.kvizovi||[]).filter(k=>k.razredId===u.razredId && k.datumOd>danas);
+  const prosli = (DB.kvizovi||[]).filter(k=>k.razredId===u.razredId && k.datumDo<danas);
+  
+  let html = '<h2 class="text-3xl font-bold mb-4">❓ Kvizovi</h2>';
+  
+  if (aktivni.length) {
+    html += '<h3 class="font-bold text-lg mb-2 text-green-700">✓ Aktivni kvizovi - možeš riješiti</h3>'+
+      '<div class="grid md:grid-cols-2 gap-3 mb-6">'+
+      aktivni.map(function(k){
+        const moj = (DB.kvizPokusaji||[]).find(p=>p.kvizId===k.id && p.ucenikId===u.id);
+        return '<div class="bg-white border-2 border-green-400 rounded-xl p-4">'+
+          '<h3 class="font-bold text-lg">'+escapeHtml(k.naslov)+'</h3>'+
+          '<p class="text-sm text-gray-600">'+escapeHtml(k.predmet)+'</p>'+
+          (k.opis?'<p class="text-xs text-gray-600 mt-1">'+escapeHtml(k.opis)+'</p>':'')+
+          '<div class="text-xs text-gray-500 mt-2">📝 '+(k.pitanja||[]).length+' pitanja • '+(k.bodova||0)+' bodova • do '+fmtDate(k.datumDo)+'</div>'+
+          '<div class="mt-3">'+
+          (moj?'<div class="bg-blue-50 border border-blue-200 rounded p-2 text-sm">✓ Riješeno • <b>'+moj.bodova+'/'+k.bodova+' bodova</b>'+(moj.ocjena?' • <span class="ocjena-chip ocjena-'+moj.ocjena+'" style="cursor:default">'+moj.ocjena+'</span>':'')+'</div>':
+          '<button onclick="navigate(\'mojikvizovi\',{kvizId:'+k.id+'})" class="btn-primary w-full py-2.5 rounded-lg font-semibold">▶ Započni kviz</button>')+
+          '</div></div>';
+      }).join('')+
+      '</div>';
+  }
+  if (buduci.length) {
+    html += '<h3 class="font-bold text-lg mb-2 text-blue-700">📅 Budući kvizovi</h3>'+
+      '<div class="grid md:grid-cols-3 gap-2 mb-6">'+
+      buduci.map(k=>'<div class="bg-white border rounded-lg p-3 text-sm"><b>'+escapeHtml(k.naslov)+'</b><div class="text-xs text-gray-500">'+k.predmet+' • '+fmtDate(k.datumOd)+'</div></div>').join('')+
+      '</div>';
+  }
+  if (prosli.length) {
+    html += '<h3 class="font-bold text-lg mb-2 text-gray-600">⏱ Prošli kvizovi</h3>'+
+      '<div class="grid md:grid-cols-2 gap-3">'+
+      prosli.map(function(k){
+        const moj = (DB.kvizPokusaji||[]).find(p=>p.kvizId===k.id && p.ucenikId===u.id);
+        return '<div class="bg-gray-50 border rounded-lg p-3 opacity-80"><b>'+escapeHtml(k.naslov)+'</b> <span class="text-xs text-gray-500">'+k.predmet+'</span>'+
+          (moj?'<div class="text-sm mt-1">Bodova: <b>'+moj.bodova+'/'+k.bodova+'</b>'+(moj.ocjena?' • Ocjena: <span class="ocjena-chip ocjena-'+moj.ocjena+'" style="cursor:default">'+moj.ocjena+'</span>':'')+'</div>':'<div class="text-sm text-red-600 mt-1">⚠ Nisi riješio</div>')+
+          '</div>';
+      }).join('')+
+      '</div>';
+  }
+  if (!aktivni.length && !buduci.length && !prosli.length) {
+    html += '<div class="empty-state"><div class="text-6xl mb-3">❓</div>Nema kvizova za vaš razred.</div>';
+  }
+  c.innerHTML = html;
+};
+
+function renderKvizRjesavanje(c, kvizId) {
+  const kv = DB.kvizovi.find(k=>k.id===kvizId);
+  if (!kv) { navigate('mojikvizovi'); return; }
+  const u = DB.ucenici.find(x=>x.id===currentUser.ucenikId);
+  // Provjeri da li je već riješen
+  const postojeci = (DB.kvizPokusaji||[]).find(p=>p.kvizId===kvizId && p.ucenikId===u.id);
+  if (postojeci) {
+    c.innerHTML = '<button onclick="navigate(\'mojikvizovi\')" class="btn-secondary px-3 py-2 rounded-lg mb-3">← Nazad</button>'+
+      '<div class="bg-blue-50 border-2 border-blue-300 rounded-xl p-6 text-center">'+
+      '<div class="text-5xl mb-2">✓</div>'+
+      '<h2 class="text-2xl font-bold text-blue-900">Već ste riješili ovaj kviz</h2>'+
+      '<p class="mt-2">Bodova: <b>'+postojeci.bodova+'/'+kv.bodova+'</b> ('+Math.round(postojeci.bodova/kv.bodova*100)+'%)</p>'+
+      (postojeci.ocjena?'<p class="mt-2">Ocjena: <span class="ocjena-chip ocjena-'+postojeci.ocjena+'" style="font-size:1.5rem;width:48px;height:48px;cursor:default">'+postojeci.ocjena+'</span></p>':'')+
+      '</div>';
+    return;
+  }
+  
+  c.innerHTML = '<button onclick="if(confirm(\'Napustiti kviz? Odgovori se neće sačuvati.\'))navigate(\'mojikvizovi\')" class="btn-secondary px-3 py-2 rounded-lg mb-3">← Nazad</button>'+
+    '<div class="bg-gradient-to-r from-purple-600 to-purple-800 text-white rounded-xl p-4 mb-4">'+
+    '<h2 class="text-2xl font-bold">'+escapeHtml(kv.naslov)+'</h2>'+
+    '<p class="text-purple-100 text-sm">'+escapeHtml(kv.predmet)+' • '+(kv.pitanja||[]).length+' pitanja • '+(kv.bodova||0)+' bodova</p>'+
+    (kv.opis?'<p class="text-sm mt-2">'+escapeHtml(kv.opis)+'</p>':'')+
+    '</div>'+
+    '<form id="kvRjs" class="space-y-4">'+
+    (kv.pitanja||[]).map(function(p, i){
+      let html = '<div class="bg-white border rounded-xl p-4">'+
+        '<div class="flex justify-between mb-3"><b class="text-lg">'+(i+1)+'. '+escapeHtml(p.tekst)+'</b>'+
+        '<span class="text-xs text-gray-500">'+p.bodova+'b</span></div>';
+      if (p.tip==='choice' || p.tip==='multi' || p.tip==='trueFalse') {
+        const opcije = p.opcije || (p.tip==='trueFalse'?['Tačno','Netačno']:[]);
+        html += opcije.map((opt, oi)=>'<label class="flex items-center gap-2 p-2 hover:bg-gray-50 cursor-pointer rounded border mb-1">'+
+          '<input type="'+(p.tip==='multi'?'checkbox':'radio')+'" name="pit'+p.id+'" value="'+oi+'" class="w-4 h-4">'+
+          '<span>'+escapeHtml(opt)+'</span></label>').join('');
+      } else {
+        html += '<input type="text" name="pit'+p.id+'" class="w-full px-3 py-2 border rounded-lg" placeholder="Vaš odgovor...">';
+      }
+      html += '</div>';
+      return html;
+    }).join('')+
+    '<button type="submit" class="btn-primary w-full py-3 rounded-lg font-bold text-lg">✓ Završi i predaj kviz</button>'+
+    '</form>';
+  
+  const start = Date.now();
+  document.getElementById('kvRjs').onsubmit = function(e){
+    e.preventDefault();
+    if (!confirm('Predati kviz? Više se neće moći mijenjati.')) return;
+    // grading
+    const odgovori = {};
+    let bodova = 0;
+    (kv.pitanja||[]).forEach(function(p){
+      if (p.tip==='choice' || p.tip==='trueFalse') {
+        const v = document.querySelector('input[name="pit'+p.id+'"]:checked');
+        const odg = v ? +v.value : null;
+        odgovori[p.id] = odg;
+        if (odg!==null && (p.tacni||[]).indexOf(odg)>=0) bodova += p.bodova;
+      } else if (p.tip==='multi') {
+        const v = [].slice.call(document.querySelectorAll('input[name="pit'+p.id+'"]:checked')).map(c=>+c.value);
+        odgovori[p.id] = v;
+        // svi tačni odgovoreni, nijedan netačan
+        const sviTacni = (p.tacni||[]).every(t=>v.indexOf(t)>=0);
+        const nijednaNetacna = v.every(o=>(p.tacni||[]).indexOf(o)>=0);
+        if (sviTacni && nijednaNetacna && v.length) bodova += p.bodova;
+      } else {
+        const v = (document.querySelector('input[name="pit'+p.id+'"]')||{}).value || '';
+        odgovori[p.id] = v;
+        if (v.trim().toLowerCase() === ((p.tacni||[])[0]||'').toLowerCase()) bodova += p.bodova;
+      }
+    });
+    const pct = kv.bodova ? bodova/kv.bodova : 0;
+    let ocjena = null;
+    if (kv.ocjenjivati) {
+      if (pct>=0.9) ocjena = 5;
+      else if (pct>=0.75) ocjena = 4;
+      else if (pct>=0.6) ocjena = 3;
+      else if (pct>=0.4) ocjena = 2;
+      else ocjena = 1;
+    }
+    const pokusaj = {
+      id: Date.now(), kvizId: kvizId, ucenikId: u.id,
+      odgovori: odgovori, bodova: bodova, ocjena: ocjena,
+      datumPokusaja: new Date().toISOString(),
+      vrijemeUtrosceno: Math.round((Date.now()-start)/1000)
+    };
+    DB.kvizPokusaji = DB.kvizPokusaji || [];
+    DB.kvizPokusaji.push(pokusaj);
+    // Upiši ocjenu u dnevnik ako je auto-ocjenjivati
+    if (ocjena && kv.ocjenjivati) {
+      const sem = getCurrentSemester(u.razredId);
+      if (!isSemesterZatvoren(sem, u.razredId)) {
+        DB.ocjene.push({
+          id: Date.now()+1, ucenikId: u.id, predmet: kv.predmet, tip:'pismena',
+          vrijednost: ocjena, datum: todayISO(), semestar: sem, nastavnikId: kv.nastavnikId,
+          zamjenjeno: false, zakljucna: false, kvizId: kvizId,
+          biljeska: 'Iz kviza: '+kv.naslov+' ('+bodova+'/'+kv.bodova+' = '+Math.round(pct*100)+'%)'
+        });
+      }
+    }
+    // Obavijesti nastavnika
+    DB.obavijesti.push({ id:Date.now()+Math.random(), naslov:'❓ Učenik završio kviz', tekst:u.prezime+' '+u.ime+': '+kv.naslov+' - '+bodova+'/'+kv.bodova, datum:todayISO(), za:null, zaId:kv.nastavnikId });
+    saveData();
+    c.innerHTML = '<div class="max-w-md mx-auto bg-white border-2 border-green-400 rounded-2xl p-8 text-center mt-10">'+
+      '<div class="text-6xl mb-3">'+(pct>=0.6?'🎉':'😅')+'</div>'+
+      '<h2 class="text-2xl font-bold mb-2">Kviz završen!</h2>'+
+      '<p class="text-lg mb-2">Bodova: <b>'+bodova+'/'+kv.bodova+'</b></p>'+
+      '<p class="text-xl mb-4">Uspjeh: <b class="'+(pct>=0.8?'text-green-700':pct>=0.6?'text-blue-700':pct>=0.4?'text-yellow-700':'text-red-700')+'">'+Math.round(pct*100)+'%</b></p>'+
+      (ocjena?'<div class="mb-4">Ocjena: <span class="ocjena-chip ocjena-'+ocjena+'" style="font-size:2rem;width:60px;height:60px;cursor:default">'+ocjena+'</span></div>':'')+
+      '<button onclick="navigate(\'mojikvizovi\')" class="btn-primary px-6 py-3 rounded-lg font-bold">Nazad na kvizove</button>'+
+      '</div>';
+  };
+}
+
+// ============================================
+// ============= TO-DO za učenika =============
+// ============================================
+RENDERERS.todo = function(c) {
+  const u = DB.ucenici.find(x=>x.id===currentUser.ucenikId);
+  if (!u) { c.innerHTML='<div class="empty-state">Nema učenika</div>'; return; }
+  const danas = todayISO();
+  
+  // Sve obaveze
+  const items = [];
+  // Zadaće
+  (DB.domaci||[]).filter(d=>d.razredId===u.razredId && d.rok>=danas).forEach(d=>{
+    items.push({tip:'zadaca', naslov:d.naslov, opis:d.opis, datum:d.rok, predmet:d.predmet, id:d.id});
+  });
+  // Ispiti
+  (DB.ispitivanja||[]).filter(function(i){
+    if (i.razredId!==u.razredId) return false;
+    if (i.datum<danas) return false;
+    if (i.ucenikIds && i.ucenikIds.length) return i.ucenikIds.indexOf(u.id)>=0;
+    return true;
+  }).forEach(i=>items.push({tip:'ispit', naslov:i.naslov, opis:i.opis, datum:i.datum, predmet:i.predmet, id:i.id, podtip:i.tip}));
+  // Kvizovi (aktivni i budući)
+  (DB.kvizovi||[]).filter(k=>k.razredId===u.razredId && k.datumDo>=danas).forEach(k=>{
+    const moj = (DB.kvizPokusaji||[]).find(p=>p.kvizId===k.id && p.ucenikId===u.id);
+    if (!moj) items.push({tip:'kviz', naslov:k.naslov, opis:k.opis, datum:k.datumDo, predmet:k.predmet, id:k.id});
+  });
+  // Popravni
+  (DB.popravni||[]).filter(p=>p.ucenikId===u.id && p.status==='zakazano' && p.datum>=danas).forEach(p=>{
+    items.push({tip:'popravni', naslov:'Popravni: '+p.predmet, opis:p.razlog, datum:p.datum, predmet:p.predmet, id:p.id});
+  });
+  
+  items.sort((a,b)=>(a.datum||'').localeCompare(b.datum||''));
+  
+  const danas3 = items.filter(i=>{ const d=Math.ceil((new Date(i.datum)-new Date(danas))/(86400000)); return d<=3; });
+  
+  let html = '<div class="mb-4"><h2 class="text-3xl font-bold">📋 To-do lista</h2>'+
+    '<p class="text-gray-500 text-sm mt-1">Sve što trebaš uraditi - sortiranje po datumu</p></div>';
+  
+  if (danas3.length) {
+    html += '<div class="bg-red-50 border-2 border-red-300 rounded-xl p-4 mb-4">'+
+      '<b class="text-red-900 text-lg">🔥 HITNO ('+danas3.length+') - u sljedećih 3 dana!</b>'+
+      '</div>';
+  }
+  
+  if (!items.length) {
+    html += '<div class="empty-state"><div class="text-6xl mb-3">🎉</div><b>Sve si uradio!</b><p>Nema aktivnih obaveza.</p></div>';
+  } else {
+    html += '<div class="space-y-2">'+items.map(function(it){
+      const dl = Math.ceil((new Date(it.datum)-new Date(danas))/(86400000));
+      const tipColor = it.tip==='zadaca'?'border-yellow-400':it.tip==='ispit'?'border-red-400':it.tip==='kviz'?'border-purple-400':'border-orange-400';
+      const tipIcon = it.tip==='zadaca'?'📝':it.tip==='ispit'?'⚠':it.tip==='kviz'?'❓':'🎯';
+      const tipNaziv = it.tip==='zadaca'?'ZADAĆA':it.tip==='ispit'?(it.podtip||'ISPIT').toUpperCase():it.tip==='kviz'?'KVIZ':'POPRAVNI';
+      const dlColor = dl<=1?'bg-red-100 text-red-700':dl<=3?'bg-yellow-100 text-yellow-700':dl<=7?'bg-blue-100 text-blue-700':'bg-green-100 text-green-700';
+      const link = it.tip==='zadaca'?'mojidomaci':it.tip==='ispit'?'mojiispiti':it.tip==='kviz'?'mojikvizovi':'mojipopravni';
+      return '<div class="bg-white border-l-4 '+tipColor+' rounded-xl p-3 flex items-center gap-3 cursor-pointer hover:shadow-md transition" onclick="navigate(\''+link+'\')">'+
+        '<div class="text-3xl">'+tipIcon+'</div>'+
+        '<div class="flex-1 min-w-0">'+
+        '<div class="flex items-center gap-2 mb-1 flex-wrap"><b>'+escapeHtml(it.naslov)+'</b>'+
+        '<span class="badge bg-gray-100 text-gray-700 text-[10px]">'+tipNaziv+'</span></div>'+
+        '<div class="text-xs text-gray-600">'+escapeHtml(it.predmet||'')+(it.opis?' • '+escapeHtml(it.opis.substring(0,80)):'')+'</div>'+
+        '</div>'+
+        '<div class="text-center flex-shrink-0">'+
+        '<div class="font-bold text-sm">'+fmtDate(it.datum)+'</div>'+
+        '<span class="badge '+dlColor+'">'+(dl===0?'DANAS!':dl===1?'sutra':'za '+dl+' d')+'</span>'+
+        '</div></div>';
+    }).join('')+'</div>';
+  }
+  c.innerHTML = html;
+};
+
+// ============================================
+// ============= KALENDAR (admin) =============
+// ============================================
+RENDERERS.kalendar = function(c, state) {
+  state = state || {};
+  if (!window._kalMjesec) {
+    const d = new Date();
+    window._kalMjesec = d.getMonth();
+    window._kalGodina = d.getFullYear();
+  }
+  const mjesec = window._kalMjesec;
+  const godina = window._kalGodina;
+  const dani = new Date(godina, mjesec+1, 0).getDate();
+  const prviDan = (new Date(godina, mjesec, 1).getDay()+6)%7; // pon=0
+  const mjeseci = ['Januar','Februar','Mart','April','Maj','Juni','Juli','August','Septembar','Oktobar','Novembar','Decembar'];
+  const danimaImena = ['Pon','Uto','Sri','Čet','Pet','Sub','Ned'];
+  
+  // Skupi sve događaje za ovaj mjesec
+  function dogadjajiZaDan(dan) {
+    const dat = godina+'-'+String(mjesec+1).padStart(2,'0')+'-'+String(dan).padStart(2,'0');
+    const out = [];
+    (DB.ispitivanja||[]).filter(i=>i.datum===dat).forEach(i=>out.push({tip:'ispit', naziv:i.naslov, color:'bg-red-500'}));
+    (DB.domaci||[]).filter(d=>d.rok===dat).forEach(d=>out.push({tip:'zadaca', naziv:d.naslov, color:'bg-yellow-500'}));
+    (DB.popravni||[]).filter(p=>p.datum===dat).forEach(p=>out.push({tip:'popravni', naziv:'Popravni: '+p.predmet, color:'bg-orange-500'}));
+    (DB.kvizovi||[]).filter(k=>k.datumOd===dat||k.datumDo===dat).forEach(k=>out.push({tip:'kviz', naziv:k.naslov, color:'bg-purple-500'}));
+    return out;
+  }
+  
+  let html = '<div class="flex flex-wrap justify-between items-center gap-3 mb-4">'+
+    '<h2 class="text-3xl font-bold">📅 Kalendar</h2>'+
+    '<div class="flex items-center gap-2">'+
+    '<button onclick="kalPromjeniMjesec(-1)" class="btn-secondary px-3 py-2 rounded-lg">←</button>'+
+    '<div class="font-bold text-lg px-3">'+mjeseci[mjesec]+' '+godina+'</div>'+
+    '<button onclick="kalPromjeniMjesec(1)" class="btn-secondary px-3 py-2 rounded-lg">→</button>'+
+    '<button onclick="kalDanas()" class="btn-secondary px-3 py-2 rounded-lg text-sm">Danas</button>'+
+    '</div></div>'+
+    '<div class="bg-white border rounded-xl p-4 overflow-x-auto">'+
+    '<div class="grid grid-cols-7 gap-1 min-w-[700px]">';
+  
+  danimaImena.forEach(d=>html += '<div class="text-center font-bold text-gray-600 text-sm p-2">'+d+'</div>');
+  // prazne celije prije prvog dana
+  for (let i=0;i<prviDan;i++) html += '<div></div>';
+  // dani
+  for (let d=1;d<=dani;d++) {
+    const dat = godina+'-'+String(mjesec+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const isToday = dat===todayISO();
+    const dog = dogadjajiZaDan(d);
+    html += '<div class="border rounded-lg p-1.5 min-h-[80px] '+(isToday?'border-2 border-blue-500 bg-blue-50':'border-gray-200 hover:bg-gray-50')+'">'+
+      '<div class="font-bold text-sm '+(isToday?'text-blue-700':'text-gray-700')+'">'+d+'</div>'+
+      '<div class="space-y-0.5 mt-1">'+
+      dog.slice(0,3).map(e=>'<div class="text-[10px] '+e.color+' text-white px-1 py-0.5 rounded truncate" title="'+escapeHtml(e.naziv)+'">'+escapeHtml(e.naziv)+'</div>').join('')+
+      (dog.length>3?'<div class="text-[10px] text-gray-500">+'+(dog.length-3)+' još</div>':'')+
+      '</div></div>';
+  }
+  html += '</div></div>'+
+    '<div class="mt-3 bg-blue-50 border rounded p-3 text-xs text-blue-900">'+
+    '<b>Legenda:</b> <span class="inline-block w-3 h-3 bg-red-500 rounded ml-2"></span> Ispiti • '+
+    '<span class="inline-block w-3 h-3 bg-yellow-500 rounded ml-2"></span> Zadaće • '+
+    '<span class="inline-block w-3 h-3 bg-purple-500 rounded ml-2"></span> Kvizovi • '+
+    '<span class="inline-block w-3 h-3 bg-orange-500 rounded ml-2"></span> Popravni'+
+    '</div>';
+  c.innerHTML = html;
+};
+
+function kalPromjeniMjesec(d) {
+  window._kalMjesec += d;
+  if (window._kalMjesec < 0) { window._kalMjesec = 11; window._kalGodina--; }
+  if (window._kalMjesec > 11) { window._kalMjesec = 0; window._kalGodina++; }
+  navigate('kalendar');
+}
+function kalDanas() {
+  const d = new Date();
+  window._kalMjesec = d.getMonth();
+  window._kalGodina = d.getFullYear();
+  navigate('kalendar');
+}
 
 // ============= eSVESKA (text editor sa formatiranjem) =============
 RENDERERS.esveska = function(c, state) {
