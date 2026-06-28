@@ -127,6 +127,40 @@
   .ocjena-5 { background:#86efac; color:#064e3b; }
   .ocjena-NPS { background:#e0e7ff; color:#3730a3; font-size:.7rem; min-width:38px; }
   .ocjena-custom { font-size:.7rem; min-width:42px; color:white; font-weight:700; padding: 2px 6px !important; }
+  
+  /* ============== STREAM (feed razreda) ============== */
+  .stream-post { background:white; border-radius:14px; box-shadow:0 2px 8px rgba(0,0,0,.06); padding:16px; margin-bottom:14px; border:1px solid #e2e8f0; transition:all .15s; }
+  .stream-post:hover { box-shadow:0 4px 12px rgba(0,0,0,.1); }
+  .stream-post.pinned { background:linear-gradient(135deg,#fef9c3,#fef3c7); border-color:#f59e0b; border-width:2px; }
+  .stream-post.pinned::before { content:'📌 Zakačeno'; display:block; font-size:0.7rem; color:#92400e; font-weight:bold; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.05em; }
+  .stream-avatar { width:42px; height:42px; border-radius:50%; background:linear-gradient(135deg,#1e40af,#2563eb); color:white; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:14px; }
+  .stream-avatar.uc { background:linear-gradient(135deg,#16a34a,#15803d); }
+  .stream-prilog { display:inline-flex; align-items:center; gap:6px; background:#f1f5f9; padding:6px 10px; border-radius:8px; font-size:0.8rem; margin:3px; cursor:pointer; transition:background .15s; }
+  .stream-prilog:hover { background:#dbeafe; }
+  .stream-prilog img { max-width:100%; max-height:300px; border-radius:8px; display:block; margin-top:6px; }
+  .reakcija-btn { background:#f1f5f9; border:1px solid #cbd5e1; padding:3px 10px; border-radius:14px; font-size:0.85rem; cursor:pointer; transition:all .15s; display:inline-flex; align-items:center; gap:4px; }
+  .reakcija-btn:hover { background:#dbeafe; border-color:#3b82f6; transform:scale(1.05); }
+  .reakcija-btn.aktivna { background:#dbeafe; border-color:#1e40af; color:#1e40af; font-weight:bold; }
+  .komentar { background:#f8fafc; border-radius:10px; padding:8px 12px; margin-top:6px; font-size:0.85rem; }
+  .komentar-input { background:#f1f5f9; border:1px solid #e2e8f0; border-radius:20px; padding:8px 14px; width:100%; font-size:0.9rem; }
+  .komentar-input:focus { background:white; border-color:#1e40af; }
+  
+  /* PREDAJA zadaća */
+  .predaja-status { display:inline-block; padding:3px 10px; border-radius:12px; font-size:0.7rem; font-weight:700; }
+  .predaja-status.predano { background:#dcfce7; color:#15803d; }
+  .predaja-status.vraceno { background:#fef3c7; color:#92400e; }
+  .predaja-status.ocijenjeno { background:#dbeafe; color:#1e40af; }
+  .predaja-status.kasno { background:#fee2e2; color:#991b1b; }
+  .predaja-status.nepredano { background:#f1f5f9; color:#64748b; }
+  
+  /* Drag & drop file zone */
+  .file-drop-zone { border:2px dashed #cbd5e1; border-radius:12px; padding:20px; text-align:center; cursor:pointer; transition:all .15s; background:#f8fafc; }
+  .file-drop-zone:hover, .file-drop-zone.dragover { border-color:#1e40af; background:#dbeafe; }
+  .file-item { background:white; border:1px solid #e2e8f0; border-radius:8px; padding:8px 12px; display:flex; align-items:center; gap:8px; margin-top:6px; }
+  .file-item .file-icon { font-size:1.5rem; }
+  .file-item .file-info { flex:1; min-width:0; }
+  .file-item .file-info .name { font-weight:600; truncate; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .file-item .file-info .size { font-size:0.7rem; color:#64748b; }
   .add-grade-btn { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:#dbeafe; color:#1e40af; font-weight:bold; cursor:pointer; margin-left:4px; border:none; }
   .add-grade-btn:hover { background:#1e40af; color:white; }
   .pulse-now { animation: pulse 2s infinite; }
@@ -738,7 +772,11 @@ const DEFAULT_DATA = {
     { id:'nije', oznaka:'N', naziv:'Nije uradio', boja:'#dc2626', opis:'Učenik nije uradio zadatak' },
     { id:'ucestvovao', oznaka:'U', naziv:'Učestvovao', boja:'#7c3aed', opis:'Aktivno učestvovao na času' },
     { id:'oslobodjen', oznaka:'O', naziv:'Oslobođen', boja:'#64748b', opis:'Oslobođen od ocjenjivanja' }
-  ]
+  ],
+  // STREAM - feed razreda (kao Google Classroom)
+  stream: [], // { id, razredId, predmet, nastavnikId, naslov, tekst, datum, pinned, prilozi:[{naziv,tip,data}], komentari:[{id,korisnikId,tekst,datum}], reakcije:{emoji:[userId]} }
+  // PREDAJE zadaća - vezane za domaci.id
+  predaje: [] // { id, domaciId, ucenikId, datum, tekst, fajlovi:[{naziv,tip,data}], status:'predano|vraceno|ocijenjeno', ocjena, komentar, ocijenioId }
 };
 
 let DB;
@@ -1250,6 +1288,7 @@ const MENU = {
     ['semestri','Semestri','cal'],
     ['popravni','Popravni ispiti','exam'],
     ['customocjene','Custom ocjene','star'],
+    ['stream','Stream razreda','mail'],
     ['esveska','eSveska','note'],
     ['poruke','Poruke','mail'],
     ['postavke','Postavke','set'],
@@ -1258,6 +1297,7 @@ const MENU = {
   nastavnik: [
     ['pocetna','Početna','home'],
     ['mojicasovi','Moji časovi','cal'],
+    ['stream','📚 Stream','mail'],
     ['dnevnik','Dnevnik','book'],
     ['planprogram','Plan i program','folder'],
     ['materijali','Materijali','doc'],
@@ -1265,6 +1305,7 @@ const MENU = {
     ['esveska','eSveska','note'],
     ['biljeznica','📓 Bilježnica','homework'],
     ['domaci','Domaće zadaće','homework'],
+    ['predaje','📥 Predaje zadaća','homework'],
     ['ispitivanja','Ispitivanja','exam'],
     ['popravni','Popravni','exam'],
     ['redari','Redari','badge'],
@@ -1279,6 +1320,7 @@ const MENU = {
   ],
   ucenik: [
     ['pocetna','Početna','home'],
+    ['stream','📚 Stream','mail'],
     ['mojeocjene','Moje ocjene','star'],
     ['mojeprisustvo','Prisustvo','student'],
     ['mojiraspored','Raspored','cal'],
@@ -3831,11 +3873,19 @@ RENDERERS.domaci = function(c) {
     (list.length?list.map(function(d){
       const dl = Math.ceil((new Date(d.rok)-new Date(todayISO()))/(1000*60*60*24));
       const passed = dl<0;
-      return '<div class="bg-white border rounded-xl p-5 '+(passed?'opacity-60':'')+'">'+
+      const ukUc = DB.ucenici.filter(u=>u.razredId===d.razredId).length;
+      const predaje = (DB.predaje||[]).filter(p=>p.domaciId===d.id);
+      const ocijenjeno = predaje.filter(p=>p.status==='ocijenjeno').length;
+      return '<div class="bg-white border rounded-xl p-5 '+(passed?'opacity-75':'')+'">'+
         '<div class="flex justify-between items-start mb-2"><h3 class="font-bold text-lg">'+escapeHtml(d.naslov)+'</h3>'+
         '<span class="badge '+(passed?'bg-gray-100 text-gray-600':dl<=1?'bg-red-100 text-red-700':dl<=3?'bg-yellow-100 text-yellow-700':'bg-green-100 text-green-700')+'">'+(passed?'isteklo':dl===0?'danas':dl+'d')+'</span></div>'+
         '<p class="text-sm text-gray-500 mb-2">'+d.predmet+' • '+getRazredName(d.razredId)+'</p>'+
         '<p class="text-sm text-gray-700 mb-3 whitespace-pre-wrap">'+escapeHtml(d.opis||'')+'</p>'+
+        // Predaje statistika
+        '<div class="bg-blue-50 border border-blue-200 rounded-lg p-2 mb-3 text-sm flex justify-between items-center">'+
+        '<div>📥 <b>'+predaje.length+'/'+ukUc+'</b> predalo • <b class="text-green-700">'+ocijenjeno+'</b> ocijenjeno</div>'+
+        '<button onclick="navigate(\'predaje\')" class="text-blue-700 hover:underline text-xs font-semibold">Pregled →</button>'+
+        '</div>'+
         '<div class="flex justify-between text-xs text-gray-500"><span>Rok: <b>'+fmtDate(d.rok)+'</b></span>'+
         '<button onclick="obrisiDom('+d.id+')" class="text-red-500">Obriši</button></div></div>';
     }).join(''):'<div class="empty-state col-span-2">Nema zadaća</div>')+
@@ -4130,6 +4180,628 @@ function obrisiIspit(id) {
   DB.ispitivanja = DB.ispitivanja.filter(x=>x.id!==id); 
   saveData(); closeModal(); navigate('ispitivanja'); 
   showNotification('Ispit obrisan');
+}
+
+// ============= FILE HELPERS =============
+// Konvertuje file u base64
+function fileToBase64(file) {
+  return new Promise(function(resolve, reject) {
+    const reader = new FileReader();
+    reader.onload = ()=>resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function fmtFileSize(b) {
+  if (b<1024) return b+' B';
+  if (b<1024*1024) return (b/1024).toFixed(1)+' KB';
+  return (b/1024/1024).toFixed(2)+' MB';
+}
+
+function fileIconFor(tip) {
+  if (tip.startsWith('image/')) return '🖼';
+  if (tip.includes('pdf')) return '📕';
+  if (tip.includes('word') || tip.includes('document')) return '📘';
+  if (tip.includes('excel') || tip.includes('sheet')) return '📗';
+  if (tip.includes('presentation') || tip.includes('powerpoint')) return '📙';
+  if (tip.includes('zip') || tip.includes('archive')) return '🗜';
+  if (tip.startsWith('video/')) return '🎬';
+  if (tip.startsWith('audio/')) return '🎵';
+  return '📄';
+}
+
+// Renderuje listu fajlova (priloga) sa preview
+function renderPrilozi(prilozi, deleteFn) {
+  if (!prilozi || !prilozi.length) return '';
+  return '<div class="space-y-1 mt-2">'+prilozi.map(function(p, i){
+    const isImg = p.tip && p.tip.startsWith('image/');
+    return '<div class="file-item">'+
+      '<span class="file-icon">'+fileIconFor(p.tip||'')+'</span>'+
+      '<div class="file-info">'+
+      '<div class="name truncate">'+escapeHtml(p.naziv)+'</div>'+
+      '<div class="size">'+(p.velicina?fmtFileSize(p.velicina):'')+'</div>'+
+      '</div>'+
+      (p.data?'<button type="button" onclick="otvoriFajl(\''+p.data.substring(0,30)+'_'+i+'\','+JSON.stringify(i)+')" data-prilog-idx="'+i+'" class="text-blue-600 hover:bg-blue-50 px-2 py-1 rounded text-xs">👁 Otvori</button>':'')+
+      (deleteFn?'<button type="button" onclick="'+deleteFn+'('+i+')" class="text-red-500 hover:bg-red-50 px-2 py-1 rounded text-xs">🗑</button>':'')+
+      '</div>'+
+      (isImg && p.data ? '<img src="'+p.data+'" alt="" style="max-width:100%;max-height:300px;border-radius:8px;margin-top:6px" onclick="otvoriSliku(\''+escapeHtml(p.naziv)+'\',this.src)">' : '');
+  }).join('')+'</div>';
+}
+
+function otvoriSliku(naslov, src) {
+  showModal('<h3 class="text-lg font-bold mb-3">'+escapeHtml(naslov)+'</h3>'+
+    '<img src="'+src+'" style="max-width:100%;max-height:70vh;border-radius:8px">'+
+    '<div class="flex justify-end mt-3 pt-3 border-t gap-2">'+
+    '<a href="'+src+'" download="'+escapeHtml(naslov)+'" class="btn-secondary px-4 py-2 rounded-lg text-sm">⬇ Preuzmi</a>'+
+    '<button onclick="closeModal()" class="btn-primary px-4 py-2 rounded-lg">Zatvori</button>'+
+    '</div>');
+}
+
+// Otvori fajl - za slike pokaže preview, ostalo download
+function otvoriFajl(_, idx) {
+  // idx je indeks u trenutnom kontekstu, fajl se traži preko data atributa
+  // Pošto se zovemo iz različitih konteksta, najsigurnije je da koristi globalnu referencu
+  const btn = event.target.closest('button');
+  if (!btn) return;
+  // Pronađi roditeljski file-item i pripadajući src
+  const item = btn.closest('.file-item');
+  const img = item.nextElementSibling;
+  if (img && img.tagName==='IMG') {
+    otvoriSliku(item.querySelector('.name').textContent, img.src);
+  } else {
+    // Nije slika - traženje base64 iz dom atributa nije pouzdano, pa pokazujemo notifikaciju
+    showNotification('Fajl pristup - klikni na ime fajla', 'info');
+  }
+}
+
+// Univerzalni file picker / drag-drop
+function setupFileDrop(zoneId, onFilesPicked) {
+  const zone = document.getElementById(zoneId);
+  if (!zone) return;
+  const input = zone.querySelector('input[type="file"]');
+  zone.addEventListener('click', function(e){ if (e.target.tagName!=='INPUT') input?.click(); });
+  zone.addEventListener('dragover', function(e){ e.preventDefault(); zone.classList.add('dragover'); });
+  zone.addEventListener('dragleave', function(){ zone.classList.remove('dragover'); });
+  zone.addEventListener('drop', function(e){
+    e.preventDefault(); zone.classList.remove('dragover');
+    if (e.dataTransfer.files.length) onFilesPicked(Array.from(e.dataTransfer.files));
+  });
+  if (input) input.addEventListener('change', function(e){
+    if (e.target.files.length) onFilesPicked(Array.from(e.target.files));
+  });
+}
+
+async function obradiFajlove(files, maxMB) {
+  maxMB = maxMB||5;
+  const rezultat = [];
+  for (const f of files) {
+    if (f.size > maxMB*1024*1024) {
+      showNotification('Fajl "'+f.name+'" je veći od '+maxMB+'MB - preskočen','error');
+      continue;
+    }
+    try {
+      const data = await fileToBase64(f);
+      rezultat.push({ naziv:f.name, tip:f.type, velicina:f.size, data:data });
+    } catch(e) { console.error(e); }
+  }
+  return rezultat;
+}
+
+// ============= STREAM (feed razreda - Google Classroom style) =============
+RENDERERS.stream = function(c) {
+  if (!DB.stream) DB.stream = [];
+  
+  // koji razred trenutno gledamo
+  let razrediZaPrikaz = [];
+  if (currentUser.role==='admin') {
+    razrediZaPrikaz = DB.razredi.map(r=>r.id);
+  } else if (currentUser.role==='nastavnik') {
+    razrediZaPrikaz = [...new Set((currentUser.zaduzenja||[]).reduce((s,z)=>s.concat(z.razrediIds||[]),[]))];
+  } else if (currentUser.role==='ucenik') {
+    const u = DB.ucenici.find(x=>x.id===currentUser.ucenikId);
+    razrediZaPrikaz = u ? [u.razredId] : [];
+  }
+  
+  const razredId = +(document.getElementById('strRazred')?.value || razrediZaPrikaz[0] || DB.razredi[0]?.id);
+  const filter = document.getElementById('strFilter')?.value || 'sve';
+  
+  // postovi za odabrani razred
+  let postovi = DB.stream.filter(p=>p.razredId===razredId);
+  if (filter==='moje' && currentUser.role==='nastavnik') postovi = postovi.filter(p=>p.nastavnikId===currentUser.id);
+  
+  // sortiranje: prvo pinned, pa po datumu
+  postovi.sort(function(a,b){
+    if (a.pinned && !b.pinned) return -1;
+    if (!a.pinned && b.pinned) return 1;
+    return (b.datum||'').localeCompare(a.datum||'');
+  });
+  
+  c.innerHTML = '<div class="flex flex-wrap justify-between items-center gap-3 mb-4">'+
+    '<div><h2 class="text-3xl font-bold">📚 Stream razreda</h2>'+
+    '<p class="text-gray-500 text-sm mt-1">Feed obavještenja, najava i komunikacije razreda</p></div>'+
+    (currentUser.role==='nastavnik' || currentUser.role==='admin' ? 
+      '<button onclick="novaStreamObjava('+razredId+')" class="btn-primary px-4 py-2 rounded-lg font-semibold">+ Nova objava</button>' : '')+
+    '</div>'+
+    '<div class="flex flex-wrap gap-2 mb-4 bg-white p-3 rounded-xl border">'+
+    (razrediZaPrikaz.length>1 ? 
+      '<select id="strRazred" onchange="navigate(\'stream\')" class="px-3 py-2 border rounded-lg">'+
+      razrediZaPrikaz.map(rid=>'<option value="'+rid+'"'+(rid===razredId?' selected':'')+'>'+getRazredName(rid)+'</option>').join('')+
+      '</select>' : '<div class="px-3 py-2 font-semibold">'+getRazredName(razredId)+'</div>')+
+    (currentUser.role==='nastavnik' ? 
+      '<select id="strFilter" onchange="navigate(\'stream\')" class="px-3 py-2 border rounded-lg">'+
+      '<option value="sve"'+(filter==='sve'?' selected':'')+'>Sve objave</option>'+
+      '<option value="moje"'+(filter==='moje'?' selected':'')+'>Samo moje objave</option>'+
+      '</select>' : '')+
+    '</div>';
+  
+  if (!postovi.length) {
+    c.innerHTML += '<div class="empty-state"><div class="text-6xl mb-3">📭</div><p>Nema objava u streamu razreda</p>'+
+      (currentUser.role==='nastavnik' || currentUser.role==='admin' ? '<button onclick="novaStreamObjava('+razredId+')" class="btn-primary px-4 py-2 rounded-lg font-semibold mt-3">+ Prva objava</button>' : '')+
+      '</div>';
+    return;
+  }
+  
+  c.innerHTML += '<div>'+postovi.map(function(p){
+    const autor = DB.users.find(u=>u.id===p.nastavnikId);
+    const autIme = autor ? autor.name : 'Sistem';
+    const autInicijali = autor ? autor.name.split(' ').map(w=>w[0]||'').join('').substring(0,2).toUpperCase() : '?';
+    const isMoja = p.nastavnikId===currentUser.id;
+    const ukReakcija = Object.keys(p.reakcije||{}).reduce((s,k)=>s+(p.reakcije[k]||[]).length,0);
+    const brKom = (p.komentari||[]).length;
+    
+    return '<div class="stream-post'+(p.pinned?' pinned':'')+'" id="post_'+p.id+'">'+
+      // Header
+      '<div class="flex items-start gap-3 mb-3">'+
+      '<div class="stream-avatar">'+autInicijali+'</div>'+
+      '<div class="flex-1 min-w-0">'+
+      '<div class="font-bold">'+escapeHtml(autIme)+(p.predmet?' <span class="text-xs text-gray-500 font-normal">• '+escapeHtml(p.predmet)+'</span>':'')+'</div>'+
+      '<div class="text-xs text-gray-500">'+fmtDateTime(p.datum)+'</div>'+
+      '</div>'+
+      (isMoja || currentUser.role==='admin' ? '<div class="flex gap-1">'+
+        '<button onclick="togglePinStream('+p.id+')" class="text-gray-400 hover:text-yellow-600 w-8 h-8 rounded text-sm" title="'+(p.pinned?'Otkači':'Zakači na vrh')+'">📌</button>'+
+        '<button onclick="urediStream('+p.id+')" class="text-gray-400 hover:text-blue-600 w-8 h-8 rounded text-sm" title="Uredi">✎</button>'+
+        '<button onclick="obrisiStream('+p.id+')" class="text-gray-400 hover:text-red-600 w-8 h-8 rounded text-sm" title="Obriši">🗑</button>'+
+        '</div>' : '')+
+      '</div>'+
+      // Naslov
+      (p.naslov?'<h3 class="font-bold text-lg mb-2">'+escapeHtml(p.naslov)+'</h3>':'')+
+      // Tekst
+      '<div class="text-sm text-gray-800 whitespace-pre-wrap mb-3">'+parseMarkdown(p.tekst||'')+'</div>'+
+      // Prilozi
+      ((p.prilozi&&p.prilozi.length) ? renderPrilozi(p.prilozi) : '')+
+      // Reakcije
+      '<div class="flex flex-wrap gap-2 mt-3 pt-3 border-t">'+
+      ['👍','❤️','🎉','😮','👏','🤔'].map(function(emo){
+        const lista = (p.reakcije||{})[emo] || [];
+        const ja = lista.indexOf(currentUser.id)>=0;
+        return '<button onclick="toggleStreamReakcija('+p.id+',\''+emo+'\')" class="reakcija-btn'+(ja?' aktivna':'')+'">'+emo+(lista.length?' '+lista.length:'')+'</button>';
+      }).join('')+
+      '<button onclick="toggleKomentari('+p.id+')" class="reakcija-btn ml-auto">💬 '+brKom+' '+(brKom===1?'komentar':'komentara')+'</button>'+
+      '</div>'+
+      // Komentari (sakriveni default, otvaraju se na klik)
+      '<div id="kom_'+p.id+'" class="hidden mt-3 pt-3 border-t space-y-2">'+
+      ((p.komentari||[]).map(function(k){
+        const aut = DB.users.find(u=>u.id===k.korisnikId);
+        const ime = aut?aut.name:'?';
+        const inic = (ime.split(' ').map(w=>w[0]||'').join('').substring(0,2).toUpperCase());
+        const moj = k.korisnikId===currentUser.id;
+        return '<div class="flex gap-2 items-start">'+
+          '<div class="stream-avatar '+(aut&&aut.role==='ucenik'?'uc':'')+'" style="width:32px;height:32px;font-size:12px">'+inic+'</div>'+
+          '<div class="komentar flex-1">'+
+          '<div class="flex justify-between items-center mb-1"><b class="text-xs">'+escapeHtml(ime)+'</b><span class="text-[10px] text-gray-500">'+fmtTimeShort(k.datum)+'</span></div>'+
+          '<div>'+parseMarkdown(k.tekst)+'</div>'+
+          (moj || currentUser.role==='admin' ? '<button onclick="obrisiKomentar('+p.id+','+k.id+')" class="text-red-500 hover:underline text-[10px] mt-1">obriši</button>' : '')+
+          '</div></div>';
+      }).join(''))+
+      '<form onsubmit="dodajKomentar(event,'+p.id+')" class="flex gap-2 mt-3">'+
+      '<input class="komentar-input flex-1" placeholder="Napišite komentar..." name="kom" required>'+
+      '<button class="btn-primary px-4 py-2 rounded-lg text-sm">📤</button>'+
+      '</form>'+
+      '</div>'+
+      '</div>';
+  }).join('')+'</div>';
+};
+
+function toggleKomentari(postId) {
+  const el = document.getElementById('kom_'+postId);
+  if (el) el.classList.toggle('hidden');
+}
+
+function togglePinStream(postId) {
+  const p = DB.stream.find(x=>x.id===postId);
+  if (!p) return;
+  p.pinned = !p.pinned;
+  saveData(); navigate('stream');
+  showNotification(p.pinned?'📌 Zakačeno na vrh':'Otkačeno');
+}
+
+function obrisiStream(postId) {
+  if (!confirm('🗑 Obrisati objavu? Komentari i reakcije će također biti obrisani.')) return;
+  DB.stream = DB.stream.filter(x=>x.id!==postId);
+  saveData(); navigate('stream'); showNotification('Objava obrisana');
+}
+
+function toggleStreamReakcija(postId, emo) {
+  const p = DB.stream.find(x=>x.id===postId);
+  if (!p) return;
+  p.reakcije = p.reakcije || {};
+  p.reakcije[emo] = p.reakcije[emo] || [];
+  const ix = p.reakcije[emo].indexOf(currentUser.id);
+  if (ix>=0) p.reakcije[emo].splice(ix,1);
+  else p.reakcije[emo].push(currentUser.id);
+  if (!p.reakcije[emo].length) delete p.reakcije[emo];
+  saveData(); navigate('stream');
+}
+
+function dodajKomentar(e, postId) {
+  e.preventDefault();
+  const inp = e.target.querySelector('[name=kom]');
+  const tekst = inp.value.trim();
+  if (!tekst) return;
+  const p = DB.stream.find(x=>x.id===postId);
+  if (!p) return;
+  p.komentari = p.komentari || [];
+  p.komentari.push({ id:Date.now(), korisnikId:currentUser.id, tekst:tekst, datum:new Date().toISOString() });
+  // obavijesti autora objave
+  if (p.nastavnikId !== currentUser.id) {
+    DB.obavijesti.push({ id:Date.now()+1, naslov:'💬 Novi komentar', tekst:currentUser.name+': '+stripMarkdown(tekst).substring(0,80), datum:todayISO(), za:null, zaId:p.nastavnikId });
+  }
+  saveData(); navigate('stream');
+  setTimeout(()=>{ document.getElementById('kom_'+postId)?.classList.remove('hidden'); }, 100);
+}
+
+function obrisiKomentar(postId, komId) {
+  if (!confirm('Obrisati komentar?')) return;
+  const p = DB.stream.find(x=>x.id===postId);
+  if (!p) return;
+  p.komentari = (p.komentari||[]).filter(k=>k.id!==komId);
+  saveData(); navigate('stream');
+  setTimeout(()=>{ document.getElementById('kom_'+postId)?.classList.remove('hidden'); }, 100);
+}
+
+let _streamPrilozi = [];
+
+function novaStreamObjava(razredId, urediId) {
+  const ex = urediId ? DB.stream.find(p=>p.id===urediId) : null;
+  _streamPrilozi = ex ? (ex.prilozi||[]).slice() : [];
+  const dostupniPredmeti = currentUser.role==='admin' ? DB.predmeti : (currentUser.zaduzenja||[]).filter(z=>(z.razrediIds||[]).indexOf(razredId)>=0).map(z=>z.predmet);
+  
+  showModal('<h3 class="text-xl font-bold mb-3">'+(ex?'✎ Uredi objavu':'📚 Nova objava')+' • '+escapeHtml(getRazredName(razredId))+'</h3>'+
+    '<form id="strF" class="space-y-3">'+
+    (dostupniPredmeti.length ? '<div><label class="text-sm font-medium block mb-1">Predmet (opcionalno)</label>'+
+      '<select name="predmet" class="w-full px-3 py-2 border rounded-lg">'+
+      '<option value="">— Bez predmeta —</option>'+
+      dostupniPredmeti.map(p=>'<option'+(ex&&p===ex.predmet?' selected':'')+'>'+p+'</option>').join('')+
+      '</select></div>' : '')+
+    '<div><label class="text-sm font-medium block mb-1">Naslov (opcionalno)</label>'+
+    '<input name="naslov" value="'+escapeHtml(ex?ex.naslov||'':'')+'" class="w-full px-3 py-2 border rounded-lg" placeholder="npr. Obavještenje o nedjeljnom kvizu"></div>'+
+    '<div><label class="text-sm font-medium block mb-1">Tekst objave *</label>'+
+    '<textarea id="strTekst" name="tekst" required class="w-full px-3 py-2 border rounded-lg" style="min-height:120px" placeholder="Napišite tekst objave...&#10;💡 Podržan markdown: **bold** *italic* `kod`">'+escapeHtml(ex?ex.tekst||'':'')+'</textarea></div>'+
+    // PRILOZI
+    '<div><label class="text-sm font-medium block mb-1">📎 Prilozi (max 5MB po fajlu)</label>'+
+    '<div id="strDrop" class="file-drop-zone">'+
+    '<input type="file" multiple class="hidden">'+
+    '<div class="text-3xl mb-1">📎</div>'+
+    '<div class="text-sm font-medium">Klikni ili povuci fajlove</div>'+
+    '<div class="text-xs text-gray-500 mt-1">Slike, PDF, dokumenti...</div>'+
+    '</div>'+
+    '<div id="strPriloziLista">'+renderPrilozi(_streamPrilozi, 'ukloniStrPrilog')+'</div>'+
+    '</div>'+
+    '<label class="flex items-center gap-2 p-2 bg-yellow-50 rounded cursor-pointer">'+
+    '<input type="checkbox" name="pinned" '+(ex&&ex.pinned?'checked':'')+' class="w-4 h-4">'+
+    '<span class="text-sm">📌 Zakači na vrh streama</span></label>'+
+    '<div class="flex justify-end gap-2 pt-3 border-t">'+
+    '<button type="button" onclick="closeModal()" class="btn-secondary px-4 py-2 rounded-lg">Otkaži</button>'+
+    '<button type="submit" class="btn-primary px-4 py-2 rounded-lg">'+(ex?'Sačuvaj':'📚 Objavi')+'</button>'+
+    '</div></form>');
+  
+  setupFileDrop('strDrop', async function(files){
+    const novi = await obradiFajlove(files, 5);
+    _streamPrilozi = _streamPrilozi.concat(novi);
+    document.getElementById('strPriloziLista').innerHTML = renderPrilozi(_streamPrilozi, 'ukloniStrPrilog');
+  });
+  
+  document.getElementById('strF').onsubmit = function(e){
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const data = {
+      razredId: razredId,
+      predmet: fd.get('predmet')||null,
+      naslov: fd.get('naslov')||'',
+      tekst: fd.get('tekst'),
+      pinned: fd.get('pinned')==='on',
+      prilozi: _streamPrilozi.slice()
+    };
+    if (ex) {
+      Object.assign(ex, data);
+    } else {
+      data.id = Date.now();
+      data.nastavnikId = currentUser.id;
+      data.datum = new Date().toISOString();
+      data.komentari = [];
+      data.reakcije = {};
+      DB.stream.push(data);
+      // obavijesti učenike razreda
+      DB.ucenici.filter(u=>u.razredId===razredId).forEach(function(u){
+        const usr = DB.users.find(x=>x.ucenikId===u.id);
+        if (usr) DB.obavijesti.push({ id:Date.now()+Math.random(), naslov:'📚 Nova objava u streamu', tekst:(data.naslov?data.naslov+': ':'')+stripMarkdown(data.tekst).substring(0,80), datum:todayISO(), za:null, zaId:usr.id });
+      });
+    }
+    _streamPrilozi = [];
+    saveData(); closeModal(); navigate('stream');
+    showNotification(ex?'Objava izmijenjena':'📚 Objava poslana!');
+  };
+}
+
+function urediStream(postId) {
+  const p = DB.stream.find(x=>x.id===postId);
+  if (!p) return;
+  novaStreamObjava(p.razredId, postId);
+}
+
+function ukloniStrPrilog(i) {
+  _streamPrilozi.splice(i,1);
+  document.getElementById('strPriloziLista').innerHTML = renderPrilozi(_streamPrilozi, 'ukloniStrPrilog');
+}
+
+// ============= PREDAJE ZADAĆA =============
+// Učenik vidi svoju zadaću → predaje. Nastavnik vidi predaje, ocjenjuje.
+let _predajaPrilozi = [];
+
+// Učenik: prikaz pojedinacne zadace s opcijom predaje
+function otvoriPredajuZadace(domaciId) {
+  const d = DB.domaci.find(x=>x.id===domaciId);
+  if (!d) return;
+  const u = DB.ucenici.find(x=>x.id===currentUser.ucenikId);
+  if (!u) return;
+  
+  // postoji li već predaja?
+  let pred = (DB.predaje||[]).find(p=>p.domaciId===domaciId && p.ucenikId===u.id);
+  _predajaPrilozi = pred ? (pred.fajlovi||[]).slice() : [];
+  
+  const dl = Math.ceil((new Date(d.rok)-new Date(todayISO()))/(1000*60*60*24));
+  const passed = dl<0;
+  
+  let html = '<h3 class="text-xl font-bold mb-1">'+escapeHtml(d.naslov)+'</h3>'+
+    '<p class="text-sm text-gray-600 mb-3">'+escapeHtml(d.predmet)+' • Rok: <b>'+fmtDate(d.rok)+'</b>'+
+    (passed?' <span class="badge bg-red-100 text-red-700 ml-1">isteklo</span>':' <span class="badge bg-blue-100 text-blue-700 ml-1">'+(dl===0?'DANAS':'za '+dl+'d')+'</span>')+'</p>'+
+    (d.opis?'<div class="bg-gray-50 p-3 rounded-lg mb-3 text-sm whitespace-pre-wrap">'+escapeHtml(d.opis)+'</div>':'');
+  
+  // Ako je već ocijenjeno
+  if (pred && pred.status==='ocijenjeno') {
+    html += '<div class="bg-green-50 border-l-4 border-green-500 rounded-lg p-3 mb-3">'+
+      '<div class="flex justify-between items-center"><b class="text-green-900">✓ Ocijenjeno</b>'+
+      (pred.ocjena?'<span class="ocjena-chip ocjena-'+pred.ocjena+'" style="cursor:default;font-size:1.3rem;width:38px;height:38px">'+pred.ocjena+'</span>':'')+'</div>'+
+      (pred.komentar?'<div class="text-sm text-green-800 mt-2"><b>Komentar nastavnika:</b> '+escapeHtml(pred.komentar)+'</div>':'')+
+      '</div>';
+  }
+  if (pred && pred.status==='predano') {
+    html += '<div class="bg-blue-50 border-l-4 border-blue-500 rounded-lg p-3 mb-3"><b class="text-blue-900">📤 Predano '+fmtDateTime(pred.datum)+'</b>'+
+      '<div class="text-xs text-blue-700 mt-1">Čeka pregled nastavnika</div></div>';
+  }
+  if (pred && pred.status==='vraceno') {
+    html += '<div class="bg-yellow-50 border-l-4 border-yellow-500 rounded-lg p-3 mb-3"><b class="text-yellow-900">↩ Vraćeno na doradu</b>'+
+      (pred.komentar?'<div class="text-sm text-yellow-800 mt-1">'+escapeHtml(pred.komentar)+'</div>':'')+'</div>';
+  }
+  
+  // Forma za predaju (ako nije ocijenjeno)
+  const mozePredati = !pred || pred.status==='vraceno' || pred.status==='predano';
+  html += '<form id="predF" class="space-y-3">'+
+    '<div><label class="text-sm font-medium block mb-1">Tekst odgovora (opcionalno)</label>'+
+    '<textarea name="tekst" '+(!mozePredati?'readonly':'')+' class="w-full px-3 py-2 border rounded-lg" style="min-height:100px" placeholder="Napišite odgovor ili dodajte fajl...">'+escapeHtml(pred?pred.tekst||'':'')+'</textarea></div>'+
+    (mozePredati ? '<div><label class="text-sm font-medium block mb-1">📎 Fajlovi (max 5MB po fajlu)</label>'+
+      '<div id="predDrop" class="file-drop-zone">'+
+      '<input type="file" multiple class="hidden">'+
+      '<div class="text-3xl mb-1">📎</div>'+
+      '<div class="text-sm font-medium">Klikni ili povuci fajlove</div>'+
+      '</div>'+
+      '<div id="predPriloziLista">'+renderPrilozi(_predajaPrilozi, 'ukloniPredPrilog')+'</div>'+
+      '</div>' : '<div id="predPriloziLista">'+renderPrilozi(_predajaPrilozi)+'</div>')+
+    '<div class="flex justify-end gap-2 pt-3 border-t">'+
+    '<button type="button" onclick="closeModal()" class="btn-secondary px-4 py-2 rounded-lg">Zatvori</button>'+
+    (mozePredati ? '<button type="submit" class="btn-primary px-4 py-2 rounded-lg font-semibold">📤 '+(pred?'Pošalji ponovo':'Predaj zadaću')+'</button>' : '')+
+    '</div></form>';
+  showModal(html);
+  
+  if (mozePredati) {
+    setupFileDrop('predDrop', async function(files){
+      const novi = await obradiFajlove(files, 5);
+      _predajaPrilozi = _predajaPrilozi.concat(novi);
+      document.getElementById('predPriloziLista').innerHTML = renderPrilozi(_predajaPrilozi, 'ukloniPredPrilog');
+    });
+  }
+  
+  document.getElementById('predF').onsubmit = function(e){
+    e.preventDefault();
+    if (!mozePredati) return;
+    const fd = new FormData(e.target);
+    const tekst = (fd.get('tekst')||'').trim();
+    if (!tekst && !_predajaPrilozi.length) { showNotification('Dodaj tekst ili fajl','error'); return; }
+    if (!DB.predaje) DB.predaje = [];
+    if (pred) {
+      // ažuriraj postojeću
+      pred.tekst = tekst;
+      pred.fajlovi = _predajaPrilozi.slice();
+      pred.status = 'predano';
+      pred.datum = new Date().toISOString();
+    } else {
+      pred = {
+        id: Date.now(),
+        domaciId: domaciId,
+        ucenikId: u.id,
+        tekst: tekst,
+        fajlovi: _predajaPrilozi.slice(),
+        status: 'predano',
+        datum: new Date().toISOString(),
+        kasno: passed
+      };
+      DB.predaje.push(pred);
+    }
+    // obavijesti nastavnika
+    DB.obavijesti.push({ id:Date.now()+1, naslov:'📥 Nova predaja zadaće', tekst:u.prezime+' '+u.ime+': '+d.naslov, datum:todayISO(), za:null, zaId:d.nastavnikId });
+    _predajaPrilozi = [];
+    saveData(); closeModal();
+    showNotification('✓ Zadaća predana!');
+  };
+}
+
+function ukloniPredPrilog(i) {
+  _predajaPrilozi.splice(i,1);
+  document.getElementById('predPriloziLista').innerHTML = renderPrilozi(_predajaPrilozi, 'ukloniPredPrilog');
+}
+
+// NASTAVNIK: pregled svih predaja
+RENDERERS.predaje = function(c) {
+  if (currentUser.role!=='nastavnik') { c.innerHTML='<div class="empty-state">Samo nastavnici</div>'; return; }
+  if (!DB.predaje) DB.predaje = [];
+  
+  const mojeZadace = DB.domaci.filter(d=>d.nastavnikId===currentUser.id);
+  const odabranaId = +(document.getElementById('predZadaca')?.value || mojeZadace[0]?.id);
+  const zadaca = mojeZadace.find(z=>z.id===odabranaId);
+  
+  c.innerHTML = '<h2 class="text-3xl font-bold mb-4">📥 Predaje zadaća</h2>';
+  
+  if (!mojeZadace.length) {
+    c.innerHTML += '<div class="empty-state"><div class="text-6xl mb-3">📭</div><p>Nemate kreiranih zadaća</p>'+
+      '<button onclick="navigate(\'domaci\')" class="btn-primary px-4 py-2 rounded-lg mt-3">+ Kreiraj zadaću</button></div>';
+    return;
+  }
+  
+  c.innerHTML += '<div class="bg-white p-3 rounded-xl border mb-4">'+
+    '<label class="text-sm font-semibold block mb-1">Zadaća:</label>'+
+    '<select id="predZadaca" onchange="navigate(\'predaje\')" class="w-full px-3 py-2 border rounded-lg">'+
+    mojeZadace.map(d=>'<option value="'+d.id+'"'+(d.id===odabranaId?' selected':'')+'>'+escapeHtml(d.naslov)+' • '+escapeHtml(d.predmet)+' • '+getRazredName(d.razredId)+' (rok: '+fmtDate(d.rok)+')</option>').join('')+
+    '</select></div>';
+  
+  if (!zadaca) return;
+  
+  const ucenici = DB.ucenici.filter(u=>u.razredId===zadaca.razredId);
+  const predaje = DB.predaje.filter(p=>p.domaciId===zadaca.id);
+  
+  const predano = predaje.filter(p=>p.status==='predano').length;
+  const ocijenjeno = predaje.filter(p=>p.status==='ocijenjeno').length;
+  const kasno = predaje.filter(p=>p.kasno).length;
+  const nepredano = ucenici.length - predaje.length;
+  
+  c.innerHTML += '<div class="grid grid-cols-4 gap-3 mb-4">'+
+    '<div class="bg-blue-50 border border-blue-300 rounded-xl p-3 text-center"><div class="text-2xl font-bold text-blue-700">'+predano+'</div><div class="text-xs">📤 Predano</div></div>'+
+    '<div class="bg-green-50 border border-green-300 rounded-xl p-3 text-center"><div class="text-2xl font-bold text-green-700">'+ocijenjeno+'</div><div class="text-xs">✓ Ocijenjeno</div></div>'+
+    '<div class="bg-yellow-50 border border-yellow-300 rounded-xl p-3 text-center"><div class="text-2xl font-bold text-yellow-700">'+kasno+'</div><div class="text-xs">⏰ Kasno</div></div>'+
+    '<div class="bg-gray-50 border border-gray-300 rounded-xl p-3 text-center"><div class="text-2xl font-bold text-gray-700">'+nepredano+'</div><div class="text-xs">⚠ Nepredano</div></div>'+
+    '</div>';
+  
+  c.innerHTML += '<div class="space-y-2">'+ucenici.map(function(u){
+    const p = predaje.find(x=>x.ucenikId===u.id);
+    if (!p) {
+      return '<div class="bg-white border-l-4 border-gray-300 rounded-lg p-3 flex justify-between items-center">'+
+        '<div><b>'+escapeHtml(u.prezime+' '+u.ime)+'</b><div class="text-xs text-gray-500">Nije predao</div></div>'+
+        '<span class="predaja-status nepredano">⚠ NEPREDANO</span>'+
+        '</div>';
+    }
+    const stat = p.status;
+    const cls = stat==='ocijenjeno'?'border-green-500':stat==='predano'?'border-blue-500':stat==='vraceno'?'border-yellow-500':'border-gray-300';
+    return '<div class="bg-white border-l-4 '+cls+' rounded-lg p-3">'+
+      '<div class="flex justify-between items-start gap-3 flex-wrap">'+
+      '<div class="flex-1 min-w-0"><b>'+escapeHtml(u.prezime+' '+u.ime)+'</b>'+
+      '<div class="text-xs text-gray-500">Predao: '+fmtDateTime(p.datum)+(p.kasno?' <span class="text-red-600 font-bold">⏰ KASNO</span>':'')+'</div></div>'+
+      '<div class="flex items-center gap-2">'+
+      '<span class="predaja-status '+stat+'">'+(stat==='predano'?'📤 PREDANO':stat==='ocijenjeno'?'✓ OCIJENJENO ('+p.ocjena+')':'↩ VRAĆENO')+'</span>'+
+      '<button onclick="otvoriPregledPredaje('+p.id+')" class="btn-primary px-3 py-1.5 rounded-lg text-sm">📖 Pregled</button>'+
+      '</div></div></div>';
+  }).join('')+'</div>';
+};
+
+function otvoriPregledPredaje(predajaId) {
+  const p = DB.predaje.find(x=>x.id===predajaId);
+  if (!p) return;
+  const d = DB.domaci.find(x=>x.id===p.domaciId);
+  const u = DB.ucenici.find(x=>x.id===p.ucenikId);
+  if (!d || !u) return;
+  
+  let html = '<h3 class="text-xl font-bold mb-1">📖 Pregled predaje</h3>'+
+    '<p class="text-sm text-gray-600 mb-1">Učenik: <b>'+escapeHtml(u.prezime+' '+u.ime)+'</b></p>'+
+    '<p class="text-sm text-gray-600 mb-3">Zadaća: <b>'+escapeHtml(d.naslov)+'</b> • '+escapeHtml(d.predmet)+'</p>'+
+    '<div class="text-xs text-gray-500 mb-3">📤 Predao: '+fmtDateTime(p.datum)+(p.kasno?' <span class="text-red-600 font-bold">⏰ KASNO</span>':'')+'</div>'+
+    (p.tekst?'<div class="bg-gray-50 p-3 rounded-lg mb-3"><div class="text-xs font-semibold text-gray-600 mb-1">📝 ODGOVOR:</div><div class="whitespace-pre-wrap">'+escapeHtml(p.tekst)+'</div></div>':'')+
+    (p.fajlovi&&p.fajlovi.length ? '<div class="mb-3"><div class="text-xs font-semibold text-gray-600 mb-1">📎 PRILOZI:</div>'+renderPrilozi(p.fajlovi)+'</div>' : '')+
+    '<div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">'+
+    '<label class="text-sm font-bold text-blue-900 block mb-2">⭐ Ocijeni rad:</label>'+
+    '<div class="grid grid-cols-5 gap-2 mb-2">'+
+    [1,2,3,4,5].map(v=>'<button onclick="ocijeniPredaju('+predajaId+','+v+')" class="ocjena-chip ocjena-'+v+(p.ocjena==v?' ring-2 ring-blue-600':'')+'" style="height:50px;font-size:1.5rem">'+v+'</button>').join('')+
+    '</div>'+
+    '<button onclick="ocijeniPredaju('+predajaId+',\'NPS\')" class="ocjena-chip ocjena-NPS w-full" style="height:36px">NPS</button>'+
+    '</div>'+
+    '<div><label class="text-sm font-medium block mb-1">💬 Komentar (opcionalno)</label>'+
+    '<textarea id="predKom" class="w-full px-3 py-2 border rounded-lg" style="min-height:80px" placeholder="Napomena učeniku...">'+escapeHtml(p.komentar||'')+'</textarea></div>'+
+    '<div class="flex justify-between gap-2 pt-3 border-t mt-3">'+
+    '<button onclick="vratiPredaju('+predajaId+')" class="btn-secondary px-4 py-2 rounded-lg">↩ Vrati na doradu</button>'+
+    '<div class="flex gap-2">'+
+    '<button onclick="closeModal()" class="btn-secondary px-4 py-2 rounded-lg">Zatvori</button>'+
+    '<button onclick="sacuvajKomentarPredaje('+predajaId+')" class="btn-primary px-4 py-2 rounded-lg">💾 Sačuvaj komentar</button>'+
+    '</div></div>';
+  showModal(html);
+}
+
+function ocijeniPredaju(predajaId, vrijednost) {
+  const p = DB.predaje.find(x=>x.id===predajaId);
+  if (!p) return;
+  const d = DB.domaci.find(x=>x.id===p.domaciId);
+  const u = DB.ucenici.find(x=>x.id===p.ucenikId);
+  if (!d || !u) return;
+  const sem = getCurrentSemester(u.razredId);
+  if (isSemesterZatvoren(sem, u.razredId)) {
+    showNotification('🔒 Semestar zatvoren - ne može se ocjenjivati','error'); return;
+  }
+  // Spasi komentar prvo
+  const kom = document.getElementById('predKom')?.value || '';
+  p.komentar = kom;
+  p.ocjena = vrijednost;
+  p.status = 'ocijenjeno';
+  p.ocijenioId = currentUser.id;
+  // Dodaj ocjenu u dnevnik
+  // Provjeri postoji li već
+  DB.ocjene = DB.ocjene.filter(o=>!(o.ucenikId===u.id && o.predmet===d.predmet && o.predajaId===predajaId));
+  DB.ocjene.push({
+    id: Date.now(),
+    ucenikId: u.id,
+    predmet: d.predmet,
+    tip: 'pismena',
+    vrijednost: vrijednost,
+    datum: todayISO(),
+    semestar: sem,
+    nastavnikId: currentUser.id,
+    zamjenjuje: null,
+    zamjenjeno: false,
+    zakljucna: false,
+    predajaId: predajaId,
+    biljeska: 'Zadaća: '+d.naslov
+  });
+  // obavijesti učenika
+  const usr = DB.users.find(x=>x.ucenikId===u.id);
+  if (usr) DB.obavijesti.push({ id:Date.now()+1, naslov:'⭐ Ocijenjena zadaća', tekst:d.naslov+': '+vrijednost+(kom?' • '+kom.substring(0,40):''), datum:todayISO(), za:null, zaId:usr.id });
+  saveData(); closeModal(); navigate('predaje'); showNotification('✓ Ocjena upisana u dnevnik!');
+}
+
+function vratiPredaju(predajaId) {
+  const kom = document.getElementById('predKom')?.value || '';
+  if (!kom.trim()) { showNotification('Napiši komentar zašto vraćaš','error'); return; }
+  const p = DB.predaje.find(x=>x.id===predajaId);
+  if (!p) return;
+  p.status = 'vraceno';
+  p.komentar = kom;
+  const u = DB.ucenici.find(x=>x.id===p.ucenikId);
+  const d = DB.domaci.find(x=>x.id===p.domaciId);
+  const usr = u ? DB.users.find(x=>x.ucenikId===u.id) : null;
+  if (usr) DB.obavijesti.push({ id:Date.now(), naslov:'↩ Zadaća vraćena na doradu', tekst:(d?d.naslov:'')+': '+kom.substring(0,80), datum:todayISO(), za:null, zaId:usr.id });
+  saveData(); closeModal(); navigate('predaje'); showNotification('Vraćeno na doradu');
+}
+
+function sacuvajKomentarPredaje(predajaId) {
+  const p = DB.predaje.find(x=>x.id===predajaId);
+  if (!p) return;
+  p.komentar = document.getElementById('predKom')?.value || '';
+  saveData(); showNotification('Komentar sačuvan');
 }
 
 // ============= CUSTOM OCJENE (admin) =============
@@ -5125,12 +5797,28 @@ RENDERERS.mojidomaci = function(c) {
     (list.length?list.map(function(d){
       const dl = Math.ceil((new Date(d.rok)-new Date(todayISO()))/(1000*60*60*24));
       const passed = dl<0;
-      return '<div class="bg-white border rounded-xl p-5 '+(passed?'opacity-50':'')+'">'+
-        '<div class="flex justify-between mb-2"><h3 class="font-bold">'+escapeHtml(d.naslov)+'</h3>'+
+      // Provjeri predaju
+      const pred = (DB.predaje||[]).find(p=>p.domaciId===d.id && p.ucenikId===u.id);
+      let statusBadge = '';
+      if (pred) {
+        if (pred.status==='ocijenjeno') statusBadge = '<span class="predaja-status ocijenjeno">✓ Ocijenjeno '+(pred.ocjena?'('+pred.ocjena+')':'')+'</span>';
+        else if (pred.status==='predano') statusBadge = '<span class="predaja-status predano">📤 Predano</span>';
+        else if (pred.status==='vraceno') statusBadge = '<span class="predaja-status vraceno">↩ Vraćeno na doradu</span>';
+      } else if (passed) {
+        statusBadge = '<span class="predaja-status kasno">⚠ NEPREDANO</span>';
+      } else {
+        statusBadge = '<span class="predaja-status nepredano">⌛ Nije predano</span>';
+      }
+      return '<div class="bg-white border rounded-xl p-5 '+(passed && !pred?'opacity-60':'')+'">'+
+        '<div class="flex justify-between mb-2 gap-2 flex-wrap"><h3 class="font-bold">'+escapeHtml(d.naslov)+'</h3>'+
         '<span class="badge '+(passed?'bg-gray-100 text-gray-600':dl<=1?'bg-red-100 text-red-700':dl<=3?'bg-yellow-100 text-yellow-700':'bg-green-100 text-green-700')+'">'+(passed?'isteklo':dl===0?'DANAS!':dl+'d')+'</span></div>'+
         '<p class="text-xs text-gray-500 mb-2">'+d.predmet+'</p>'+
         '<p class="text-sm mb-2 whitespace-pre-wrap">'+escapeHtml(d.opis||'')+'</p>'+
-        '<p class="text-xs text-gray-500">Rok: <b>'+fmtDate(d.rok)+'</b></p></div>';
+        '<p class="text-xs text-gray-500 mb-2">Rok: <b>'+fmtDate(d.rok)+'</b></p>'+
+        '<div class="mb-2">'+statusBadge+'</div>'+
+        '<button onclick="otvoriPredajuZadace('+d.id+')" class="btn-primary w-full px-4 py-2 rounded-lg font-semibold">'+
+        (pred?'📖 Pregledaj predaju':'📤 Predaj zadaću')+'</button>'+
+        '</div>';
     }).join(''):'<div class="empty-state col-span-2">Nema zadaća</div>')+
     '</div>';
 };
